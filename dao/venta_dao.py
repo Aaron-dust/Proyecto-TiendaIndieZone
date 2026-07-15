@@ -81,4 +81,21 @@ class VentaDAO:
 
         return venta
 
-   
+    # Elimina una venta
+    def eliminar(self, id):
+
+        venta = self.buscar_por_id(id)
+
+        if not venta:
+
+            self.__log.error(
+                f"Eliminar fallido: Venta ID={id} no existe"
+            )
+
+            raise VentaNoEncontradaError(id)
+
+        self.__bd.remove(venta)
+
+        self.__log.warning(
+            f"Venta eliminada: ID={id}"
+        )
