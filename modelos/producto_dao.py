@@ -1,50 +1,34 @@
-# Solicita los datos y registra un producto
-def agregar_producto(pdao):
+# Modelo que representa un producto de la tienda
 
-    print("\n--- AGREGAR PRODUCTO ---")
+class Producto:
 
-    nombre = input(" Nombre : ")
+    def __init__(
+        self,
+        nombre_producto,
+        tipo_producto,
+        descripcion_producto,
+        precio,
+        stock,
+        id_categoria,
+        id_oferta=None
+    ):
 
-    tipo = input(" Tipo : ")
+        self.id = None
+        self.nombre_producto = nombre_producto
+        self.tipo_producto = tipo_producto
+        self.descripcion_producto = descripcion_producto
+        self.precio = precio
+        self.stock = stock
+        self.id_categoria = id_categoria
+        self.id_oferta = id_oferta
 
-    descripcion = input(" Descripción : ")
+    # Muestra la información del producto
+    def __str__(self):
 
-    try:
-
-        precio = float(input(" Precio : "))
-
-        stock = int(input(" Stock : "))
-
-        id_categoria = int(input(" ID Categoría : "))
-
-        oferta = input(" ID Oferta (Enter si no tiene): ").strip()
-
-        id_oferta = int(oferta) if oferta else None
-
-        producto = pdao.insertar(
-
-            Producto(
-
-                nombre,
-
-                tipo,
-
-                descripcion,
-
-                precio,
-
-                stock,
-
-                id_categoria,
-
-                id_oferta
-
-            )
-
+        return (
+            f"[{self.id}] "
+            f"{self.nombre_producto} | "
+            f"Tipo: {self.tipo_producto} | "
+            f"S/. {self.precio:.2f} | "
+            f"Stock: {self.stock}"
         )
-
-        print(f" OK Producto agregado con ID={producto.id}")
-
-    except ValueError:
-
-        print(" ERROR: Datos numéricos inválidos.")
