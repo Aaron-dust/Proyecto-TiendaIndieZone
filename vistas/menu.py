@@ -46,7 +46,6 @@ def mostrar_menu(cfg):
     print("22. Actualizar producto")
     print("23. Actualizar venta")
     print("24. Actualizar detalle de venta")
-    print("")
     print("25. Ver historial de logs")
     print("26. Limpiar historial")
     print("0. Salir")
@@ -266,3 +265,211 @@ def eliminar_detalle(dvdao):
         print(f" ERROR: {ex}")
     except ValueError:
         print(" ERROR: Los IDs deben ser números enteros.")
+
+# Solicita los datos y registra una venta
+def registrar_venta(vdao):
+
+    print("\n--- REGISTRAR VENTA ---")
+
+    try:
+
+        fecha = input(" Fecha venta: ")
+        total = float(input(" Total venta: "))
+        id_cliente = int(input(" ID Cliente: "))
+
+        venta = Venta(
+            fecha,
+            total,
+            id_cliente
+        )
+
+        vdao.insertar(venta)
+
+        print(" Venta registrada correctamente.")
+
+    except ValueError:
+
+        print(" Datos inválidos.")
+
+# Solicita los datos y registra un detalle de venta
+def agregar_detalle(dvdao):
+
+    print("\n--- AGREGAR DETALLE VENTA ---")
+
+    try:
+
+        id_venta = int(input(" ID Venta: "))
+        id_producto = int(input(" ID Producto: "))
+        cantidad = int(input(" Cantidad: "))
+        precio = float(input(" Precio unitario: "))
+        subtotal = float(input(" Subtotal: "))
+
+        detalle = DetalleVenta(
+            id_venta,
+            id_producto,
+            cantidad,
+            precio,
+            subtotal
+        )
+
+        dvdao.insertar(detalle)
+
+        print(" Detalle agregado correctamente.")
+
+    except ValueError:
+
+        print(" Datos inválidos.")
+        
+
+def actualizar_cliente(cdao):
+
+    try:
+
+        id_cliente = int(input("ID Cliente: "))
+        nombre = input("Nombre: ")
+        apellido = input("Apellido: ")
+        dni = input("DNI: ")
+        correo = input("Correo: ")
+        telefono = input("Teléfono: ")
+        fecha = input("Fecha Registro: ")
+
+        cdao.actualizar(
+            id_cliente,
+            nombre,
+            apellido,
+            dni,
+            correo,
+            telefono,
+            fecha
+        )
+
+        print(" Cliente actualizado.")
+
+    except Exception as ex:
+
+        print(ex)
+
+def actualizar_categoria(catdao):
+
+    try:
+
+        id_categoria = int(input("ID Categoría: "))
+        nombre = input("Nombre: ")
+        descripcion = input("Descripción: ")
+
+        catdao.actualizar(
+            id_categoria,
+            nombre,
+            descripcion
+        )
+
+        print(" Categoría actualizada.")
+
+    except Exception as ex:
+
+        print(ex)
+
+def actualizar_oferta(odao):
+
+    try:
+
+        id_oferta = int(input("ID Oferta: "))
+        nombre = input("Nombre: ")
+        descuento = float(input("Descuento: "))
+        fecha_inicio = input("Fecha Inicio: ")
+        fecha_fin = input("Fecha Fin: ")
+        activa = input("Activa (S/N): ").upper() == "S"
+
+        odao.actualizar(
+            id_oferta,
+            nombre,
+            descuento,
+            fecha_inicio,
+            fecha_fin,
+            activa
+        )
+
+        print(" Oferta actualizada.")
+
+    except Exception as ex:
+
+        print(ex)
+
+def actualizar_producto(pdao):
+
+    try:
+
+        id_producto = int(input("ID Producto: "))
+        nombre = input("Nombre: ")
+        tipo = input("Tipo: ")
+        descripcion = input("Descripción: ")
+        precio = float(input("Precio: "))
+        stock = int(input("Stock: "))
+        id_categoria = int(input("ID Categoría: "))
+
+        oferta = input("ID Oferta (Enter si no tiene): ")
+
+        id_oferta = int(oferta) if oferta else None
+
+        pdao.actualizar(
+            id_producto,
+            nombre,
+            tipo,
+            descripcion,
+            precio,
+            stock,
+            id_categoria,
+            id_oferta
+        )
+
+        print(" Producto actualizado.")
+
+    except Exception as ex:
+
+        print(ex)
+
+def actualizar_venta(vdao):
+
+    try:
+
+        id_venta = int(input("ID Venta: "))
+        fecha = input("Fecha: ")
+        total = float(input("Total: "))
+        id_cliente = int(input("ID Cliente: "))
+
+        vdao.actualizar(
+            id_venta,
+            fecha,
+            total,
+            id_cliente
+        )
+
+        print(" Venta actualizada.")
+
+    except Exception as ex:
+
+        print(ex)
+
+def actualizar_detalle(dvdao):
+
+    try:
+
+        id_venta = int(input("ID Venta: "))
+        id_producto = int(input("ID Producto: "))
+        cantidad = int(input("Cantidad: "))
+        precio = float(input("Precio Unitario: "))
+        subtotal = float(input("Subtotal: "))
+
+        dvdao.actualizar(
+            id_venta,
+            id_producto,
+            cantidad,
+            precio,
+            subtotal
+        )
+
+        print(" Detalle actualizado.")
+
+    except Exception as ex:
+
+        print(ex)
