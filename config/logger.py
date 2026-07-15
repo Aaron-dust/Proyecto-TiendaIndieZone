@@ -37,7 +37,7 @@ class Logger:
     # Muestra el historial de eventos
     def mostrar_logs(self):
 
-        print(f"\n========== HISTORIAL DEL SISTEMA ({len(self._logs)} eventos) ==========")
+        print(f"\n========== HISTORIAL DE REGISTRO ({len(self._logs)} eventos) ==========")
 
         for log in self._logs:
             print(f"[{log['hora']}] {log['nivel']:7} | {log['msg']}")
@@ -47,4 +47,4 @@ class Logger:
 
         self._logs.clear()
 
-        print("Historial del sistema eliminado correctamente.")
+        print("Historial de registro eliminado correctamente.")
