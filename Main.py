@@ -108,6 +108,12 @@ while not salir:
 
             case 24:
                 actualizar_detalle(dvdao)
+            
+            case 25:
+                cfg.logger.mostrar_logs()
+
+            case 26:
+                cfg.logger.limpiar()
 
             # Salir
             case 0:
