@@ -1,4 +1,3 @@
-
 import datetime
 
 
@@ -49,3 +48,11 @@ class Logger:
         self._logs.clear()
 
         print("Historial de registro eliminado correctamente.")
+
+    # Compatibilidad con el main.py
+    def mostrar_log(self):
+        self.mostrar_logs()
+
+    # Compatibilidad con el main.py
+    def limpiar_log(self):
+        self.limpiar()
