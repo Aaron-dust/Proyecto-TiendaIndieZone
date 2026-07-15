@@ -1,40 +1,29 @@
-# Solicita los datos y registra un detalle de venta
-def agregar_detalle(dvdao):
+# Modelo que representa el detalle de una venta
 
-    print("\n--- AGREGAR DETALLE VENTA ---")
+class DetalleVenta:
 
-    try:
+    def __init__(
+        self,
+        id_venta,
+        id_producto,
+        cantidad,
+        precio_unitario,
+        subtotal
+    ):
 
-        id_venta = int(input(" ID Venta : "))
+        self.id_venta = id_venta
+        self.id_producto = id_producto
+        self.cantidad = cantidad
+        self.precio_unitario = precio_unitario
+        self.subtotal = subtotal
 
-        id_producto = int(input(" ID Producto : "))
+    # Muestra la información del detalle de venta
+    def __str__(self):
 
-        cantidad = int(input(" Cantidad : "))
-
-        precio = float(input(" Precio unitario : "))
-
-        subtotal = float(input(" Subtotal : "))
-
-        detalle = dvdao.insertar(
-
-            DetalleVenta(
-
-                id_venta,
-
-                id_producto,
-
-                cantidad,
-
-                precio,
-
-                subtotal
-
-            )
-
+        return (
+            f"Venta: {self.id_venta} | "
+            f"Producto: {self.id_producto} | "
+            f"Cantidad: {self.cantidad} | "
+            f"Precio: S/. {self.precio_unitario:.2f} | "
+            f"Subtotal: S/. {self.subtotal:.2f}"
         )
-
-        print(" OK Detalle agregado correctamente.")
-
-    except ValueError:
-
-        print(" ERROR: Datos inválidos.")
