@@ -47,3 +47,63 @@ class OfertaDAO:
             key=lambda o: o.nombre_oferta
         )
 
+    # Actualiza una oferta
+    def actualizar(
+        self,
+        id,
+        nombre_oferta=None,
+        descuento=None,
+        fecha_inicio=None,
+        fecha_fin=None,
+        activa=None
+    ):
+
+        oferta = self.buscar_por_id(id)
+
+        if not oferta:
+
+            self.__log.error(
+                f"Actualizar fallido: Oferta ID={id} no existe"
+            )
+
+            raise OfertaNoEncontradaError(id)
+
+        if nombre_oferta:
+            oferta.nombre_oferta = nombre_oferta
+
+        if descuento is not None:
+            oferta.descuento = descuento
+
+        if fecha_inicio:
+            oferta.fecha_inicio = fecha_inicio
+
+        if fecha_fin:
+            oferta.fecha_fin = fecha_fin
+
+        if activa is not None:
+            oferta.activa = activa
+
+        self.__log.info(
+            f"Oferta actualizada: ID={id}"
+        )
+
+        return oferta
+
+    # Elimina una oferta
+    def eliminar(self, id):
+
+        oferta = self.buscar_por_id(id)
+
+        if not oferta:
+
+            self.__log.error(
+                f"Eliminar fallido: Oferta ID={id} no existe"
+            )
+
+            raise OfertaNoEncontradaError(id)
+
+        self.__bd.remove(oferta)
+
+        self.__log.warning(
+            f"Oferta eliminada: ID={id}"
+        )
