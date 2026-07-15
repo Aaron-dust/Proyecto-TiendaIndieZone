@@ -22,4 +22,4 @@ class Cliente:
             f"{self.correo} | "
             f"{self.telefono} | "
             f"Registro: {self.fecha_registro}"
-        )
+        )    
