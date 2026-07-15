@@ -3,7 +3,6 @@ from config.logger import Logger
 
 class SistemaConfig:
 
-    # Permite una única configuración del sistema
     _instancia = None
 
     def __new__(cls):
@@ -21,11 +20,11 @@ class SistemaConfig:
                 "Rodas Roque Mariano"
             )
 
-            # Registro del inicio del sistema
-            Logger().info(
-                f"Sistema iniciado: "
-                f"{cls._instancia.nombre} | "
-                f"Versión {cls._instancia.version}"
+            # Crear el logger del sistema
+            cls._instancia.logger = Logger()
+
+            cls._instancia.logger.info(
+                "Sistema iniciado correctamente."
             )
 
         return cls._instancia
