@@ -61,7 +61,7 @@ def agregar_cliente(cdao):
     correo = input(" Correo             : ")
     telefono = input(" Teléfono           : ")
     fecha = input(" Fecha registro     : ")
-    
+
     try:
         c = cdao.insertar(
 
@@ -143,3 +143,126 @@ def agregar_producto(pdao):
         print(f" OK Producto agregado con ID={producto.id}")
     except ValueError:
         print(" ERROR: Datos numéricos inválidos.")
+
+# Muestra todos los clientes registrados
+def listar_clientes(cdao):
+    print("\n--- CLIENTES ---")
+    clientes = cdao.obtener_todos()
+    if clientes:
+        for c in clientes:
+            print(f" {c}")
+    else:
+        print(" (No hay clientes registrados)")
+# Muestra todas las categorías registradas
+def listar_categorias(catdao):
+    print("\n--- CATEGORÍAS ---")
+    categorias = catdao.obtener_todos()
+    if categorias:
+        for c in categorias:
+            print(f" {c}")
+    else:
+        print(" (No hay categorías registradas)")
+# Muestra todas las ofertas registradas
+def listar_ofertas(odao):
+    print("\n--- OFERTAS ---")
+    ofertas = odao.obtener_todos()
+    if ofertas:
+        for o in ofertas:
+            print(f" {o}")
+    else:
+        print(" (No hay ofertas registradas)")
+# Muestra todos los productos registrados
+def listar_productos(pdao):
+    print("\n--- PRODUCTOS ---")
+    productos = pdao.obtener_todos()
+    if productos:
+        for p in productos:
+            print(f" {p}")
+    else:
+        print(" (No hay productos registrados)")
+# Muestra todas las ventas registradas
+def listar_ventas(vdao):
+    print("\n--- VENTAS ---")
+    ventas = vdao.obtener_todos()
+    if ventas:
+        for v in ventas:
+            print(f" {v}")
+    else:
+        print(" (No hay ventas registradas)")
+# Muestra todos los detalles registrados
+def listar_detalles(dvdao):
+    print("\n--- DETALLE DE VENTAS ---")
+    detalles = dvdao.obtener_todos()
+    if detalles:
+
+        for d in detalles:
+            print(f" {d}")
+    else:
+        print(" (No hay detalles registrados)")
+# Elimina un cliente por ID
+def eliminar_cliente(cdao):
+    print("\n--- ELIMINAR CLIENTE ---")
+    try:
+        id = int(input(" ID del cliente: "))
+        cdao.eliminar(id)
+        print(f" OK Cliente ID={id} eliminado")
+    except ClienteNoEncontradoError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: El ID debe ser un número entero.")
+# Elimina una categoría por ID
+def eliminar_categoria(catdao):
+    print("\n--- ELIMINAR CATEGORÍA ---")
+    try:
+        id = int(input(" ID de la categoría: "))
+        catdao.eliminar(id)
+        print(f" OK Categoría ID={id} eliminada")
+    except CategoriaNoEncontradaError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: El ID debe ser un número entero.")
+# Elimina una oferta por ID
+def eliminar_oferta(odao):
+    print("\n--- ELIMINAR OFERTA ---")
+    try:
+        id = int(input(" ID de la oferta: "))
+        odao.eliminar(id)
+        print(f" OK Oferta ID={id} eliminada")
+    except OfertaNoEncontradaError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: El ID debe ser un número entero.")
+# Elimina un producto por ID
+def eliminar_producto(pdao):
+    print("\n--- ELIMINAR PRODUCTO ---")
+    try:
+        id = int(input(" ID del producto: "))
+        pdao.eliminar(id)
+        print(f" OK Producto ID={id} eliminado")
+    except ProductoNoEncontradoError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: El ID debe ser un número entero.")
+# Elimina una venta por ID
+def eliminar_venta(vdao):
+    print("\n--- ELIMINAR VENTA ---")
+    try:
+        id = int(input(" ID de la venta: "))
+        vdao.eliminar(id)
+        print(f" OK Venta ID={id} eliminada")
+    except VentaNoEncontradaError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: El ID debe ser un número entero.")
+# Elimina un detalle de venta
+def eliminar_detalle(dvdao):
+    print("\n--- ELIMINAR DETALLE DE VENTA ---")
+    try:
+        id_venta = int(input(" ID Venta: "))
+        id_producto = int(input(" ID Producto: "))
+        dvdao.eliminar(id_venta, id_producto)
+        print(" OK Detalle eliminado.")
+    except DetalleVentaNoEncontradoError as ex:
+        print(f" ERROR: {ex}")
+    except ValueError:
+        print(" ERROR: Los IDs deben ser números enteros.")
