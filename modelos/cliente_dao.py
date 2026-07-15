@@ -1,31 +1,25 @@
-# Solicita los datos y registra un cliente
-def agregar_cliente(cdao):
+# Modelo que representa un cliente de la tienda
 
-    print("\n--- AGREGAR CLIENTE ---")
+class Cliente:
 
-    nombre = input(" Nombre             : ")
-    apellido = input(" Apellido           : ")
-    dni = input(" DNI                : ")
-    correo = input(" Correo             : ")
-    telefono = input(" Teléfono           : ")
-    fecha = input(" Fecha registro     : ")
+    def __init__(self, nombre, apellido, dni, correo, telefono, fecha_registro):
 
-    try:
+        self.id = None
+        self.nombre = nombre
+        self.apellido = apellido
+        self.dni = dni
+        self.correo = correo
+        self.telefono = telefono
+        self.fecha_registro = fecha_registro
 
-        c = cdao.insertar(
+    # Muestra la información del cliente
+    def __str__(self):
 
-            Cliente(
-                nombre,
-                apellido,
-                dni,
-                correo,
-                telefono,
-                fecha
-            )
+        return (
+            f"[{self.id}] "
+            f"{self.nombre} {self.apellido} | "
+            f"DNI: {self.dni} | "
+            f"{self.correo} | "
+            f"{self.telefono} | "
+            f"Registro: {self.fecha_registro}"
         )
-
-        print(f" OK Cliente agregado con ID={c.id}")
-
-    except DNIDuplicadoError as ex:
-
-        print(f" ERROR: {ex}")
