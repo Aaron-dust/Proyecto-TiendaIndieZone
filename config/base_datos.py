@@ -65,3 +65,106 @@ class BaseDatos:
         )
 
         """)
+        cursor.execute("""
+
+        CREATE TABLE IF NOT EXISTS Oferta(
+
+            id_oferta INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            nombre_oferta TEXT NOT NULL,
+
+            descuento REAL NOT NULL,
+
+            fecha_inicio TEXT NOT NULL,
+
+            fecha_fin TEXT NOT NULL,
+
+            activa INTEGER NOT NULL
+
+        )
+
+        """)
+
+        cursor.execute("""
+
+        CREATE TABLE IF NOT EXISTS Producto(
+
+            id_producto INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            nombre_producto TEXT NOT NULL,
+
+            tipo_producto TEXT NOT NULL,
+
+            descripcion_producto TEXT,
+
+            precio REAL NOT NULL,
+
+            stock INTEGER NOT NULL,
+
+            id_categoria INTEGER NOT NULL,
+
+            id_oferta INTEGER,
+
+            FOREIGN KEY(id_categoria)
+
+                REFERENCES Categoria(id_categoria),
+
+            FOREIGN KEY(id_oferta)
+
+                REFERENCES Oferta(id_oferta)
+
+        )
+
+        """)
+
+        cursor.execute("""
+
+        CREATE TABLE IF NOT EXISTS Venta(
+
+            id_venta INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            fecha_venta TEXT NOT NULL,
+
+            total_venta REAL NOT NULL,
+
+            id_cliente INTEGER NOT NULL,
+
+            FOREIGN KEY(id_cliente)
+
+                REFERENCES Cliente(id_cliente)
+
+        )
+
+        """)
+
+        cursor.execute("""
+
+        CREATE TABLE IF NOT EXISTS Detalle_Venta(
+
+            id_venta INTEGER NOT NULL,
+
+            id_producto INTEGER NOT NULL,
+
+            cantidad INTEGER NOT NULL,
+
+            precio_unitario REAL NOT NULL,
+
+            subtotal REAL NOT NULL,
+
+            PRIMARY KEY(id_venta,id_producto),
+
+            FOREIGN KEY(id_venta)
+
+                REFERENCES Venta(id_venta),
+
+            FOREIGN KEY(id_producto)
+
+                REFERENCES Producto(id_producto)
+
+        )
+
+        """)
+
+        conexion.commit()
+
+        self.cerrar()
