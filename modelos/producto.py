@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Modelo que representa un producto de la tienda
 
 class Producto:
@@ -33,7 +33,6 @@ class Producto:
             f"S/. {self.precio:.2f} | "
             f"Stock: {self.stock}"
         )
-=======
 # Modelo que representa un producto de la tienda
 
 class Producto:
@@ -68,4 +67,4 @@ class Producto:
             f"S/. {self.precio:.2f} | "
             f"Stock: {self.stock}"
         )
->>>>>>> 82e3a09bd05b61a0b2ff5d7cc618453fe5802da8
+

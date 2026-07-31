@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Modelo que representa el detalle de una venta
 
 class DetalleVenta:
@@ -28,7 +27,6 @@ class DetalleVenta:
             f"Precio: S/. {self.precio_unitario:.2f} | "
             f"Subtotal: S/. {self.subtotal:.2f}"
         )
-=======
 # Modelo que representa el detalle de una venta
 
 class DetalleVenta:
@@ -58,4 +56,4 @@ class DetalleVenta:
             f"Precio: S/. {self.precio_unitario:.2f} | "
             f"Subtotal: S/. {self.subtotal:.2f}"
         )
->>>>>>> 82e3a09bd05b61a0b2ff5d7cc618453fe5802da8
+

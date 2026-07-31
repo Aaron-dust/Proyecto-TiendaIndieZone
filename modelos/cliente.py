@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Modelo que representa un cliente de la tienda
 
 class Cliente:
@@ -24,7 +24,7 @@ class Cliente:
             f"{self.telefono} | "
             f"Registro: {self.fecha_registro}"
         )    
-=======
+
 # Modelo que representa un cliente de la tienda
 
 class Cliente:
@@ -50,4 +50,3 @@ class Cliente:
             f"{self.telefono} | "
             f"Registro: {self.fecha_registro}"
         )    
->>>>>>> 82e3a09bd05b61a0b2ff5d7cc618453fe5802da8
