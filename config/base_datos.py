@@ -42,6 +42,8 @@ class BaseDatos:
 
             apellido TEXT NOT NULL,
 
+            dni TEXT NOT NULL UNIQUE,
+
             correo TEXT NOT NULL UNIQUE,
 
             telefono TEXT NOT NULL,
