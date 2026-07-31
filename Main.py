@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from config.sistema_config import SistemaConfig
 
 from dao.cliente_dao import ClienteDAO
@@ -130,7 +129,6 @@ while not salir:
     except ValueError:
 
         print("\nDebe ingresar un número.")
-=======
 from config.sistema_config import SistemaConfig
 
 from dao.cliente_dao import ClienteDAO
@@ -262,4 +260,3 @@ while not salir:
     except ValueError:
 
         print("\nDebe ingresar un número.")
->>>>>>> 82e3a09bd05b61a0b2ff5d7cc618453fe5802da8
