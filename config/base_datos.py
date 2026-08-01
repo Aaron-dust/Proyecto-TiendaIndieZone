@@ -1,39 +1,27 @@
 import sqlite3
 
+# Archivo donde SQLite almacenará toda la información del sistema.
+ARCHIVO_BD = "TiendaIndieZone.db"
 
-class BaseDatos:
-    """Administra la conexión con SQLite."""
+def obtener_conexion():
+    # Abre la conexión con la base de datos o la crea si no existe.
+    conn = sqlite3.connect(ARCHIVO_BD)
+    # Activa las restricciones de claves foráneas.
+    conn.execute("PRAGMA foreign_keys = ON")
+    # Permite acceder a los registros mediante el nombre de la columna.
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    def __init__(self):
 
-        # Nombre del archivo de la base de datos
-        self.__nombre_bd = "TiendaIndieZone.db"
+def inicializar():
+    # Crea las tablas la primera vez que se ejecuta el sistema.
+    conn = obtener_conexion()
+    cursor = conn.cursor()
 
-        self.__conexion = None
-
-    # Abre la conexión
-    def conectar(self):
-
-        self.__conexion = sqlite3.connect(self.__nombre_bd)
-
-        return self.__conexion
-
-    # Cierra la conexión
-    def cerrar(self):
-
-        if self.__conexion:
-
-            self.__conexion.close()
-
-    # Crea las tablas del sistema
-    def crear_tablas(self):
-
-        conexion = self.conectar()
-
-        cursor = conexion.cursor()
-
-        cursor.execute("""
-
+    # ==========================
+    # TABLA CLIENTE
+    # ==========================
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS Cliente(
 
             id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,20 +30,21 @@ class BaseDatos:
 
             apellido TEXT NOT NULL,
 
-            dni TEXT NOT NULL UNIQUE,
+            dni TEXT UNIQUE NOT NULL,
 
-            correo TEXT NOT NULL UNIQUE,
+            correo TEXT UNIQUE NOT NULL,
 
             telefono TEXT NOT NULL,
 
             fecha_registro TEXT NOT NULL
 
         )
+    """)
+    # ==========================
+    # TABLA CATEGORIA
+    # ==========================
 
-        """)
-
-        cursor.execute("""
-
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS Categoria(
 
             id_categoria INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,10 +54,11 @@ class BaseDatos:
             descripcion TEXT
 
         )
-
-        """)
-        cursor.execute("""
-
+    """)
+    # ==========================
+    # TABLA OFERTA
+    # ==========================
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS Oferta(
 
             id_oferta INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,12 +72,12 @@ class BaseDatos:
             fecha_fin TEXT NOT NULL,
 
             activa INTEGER NOT NULL
-
         )
-
-        """)
-
-        cursor.execute("""
+    """)
+    # ==========================
+    # TABLA PRODUCTO
+    # ==========================
+    cursor.execute("""
 
         CREATE TABLE IF NOT EXISTS Producto(
 
@@ -108,18 +98,18 @@ class BaseDatos:
             id_oferta INTEGER,
 
             FOREIGN KEY(id_categoria)
-
                 REFERENCES Categoria(id_categoria),
 
             FOREIGN KEY(id_oferta)
-
                 REFERENCES Oferta(id_oferta)
 
         )
 
-        """)
-
-        cursor.execute("""
+    """)
+    # ==========================
+    # TABLA VENTA
+    # ==========================
+    cursor.execute("""
 
         CREATE TABLE IF NOT EXISTS Venta(
 
@@ -132,14 +122,13 @@ class BaseDatos:
             id_cliente INTEGER NOT NULL,
 
             FOREIGN KEY(id_cliente)
-
                 REFERENCES Cliente(id_cliente)
-
         )
-
-        """)
-
-        cursor.execute("""
+    """)
+    # ==========================
+    # TABLA DETALLE_VENTA
+    # ==========================
+    cursor.execute("""
 
         CREATE TABLE IF NOT EXISTS Detalle_Venta(
 
@@ -156,17 +145,12 @@ class BaseDatos:
             PRIMARY KEY(id_venta,id_producto),
 
             FOREIGN KEY(id_venta)
-
                 REFERENCES Venta(id_venta),
 
             FOREIGN KEY(id_producto)
-
                 REFERENCES Producto(id_producto)
-
         )
-
-        """)
-
-        conexion.commit()
-
-        self.cerrar()
+    """)
+    # Guarda los cambios realizados.
+    conn.commit()
+    conn.close()
