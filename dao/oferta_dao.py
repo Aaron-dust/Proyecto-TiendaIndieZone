@@ -119,15 +119,23 @@ class OfertaDAO:
     # Devuelve todas las ofertas
     def obtener_todos(self):
 
-        return sorted(
-            self.__bd,
-            key=lambda o: o.nombre_oferta
-        )
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        # SQLite realiza el ordenamiento de los registros.
+        cursor.execute("""
+            SELECT *
+            FROM Oferta
+            ORDER BY nombre_oferta
+        """)
 
-    # Actualiza una oferta
+        filas = cursor.fetchall()
+        conn.close()
+        # Convierte cada fila de la BD en un objeto Oferta.
+        return [self._fila_a_oferta(f) for f in filas]
+
     def actualizar(
         self,
-        id,
+        oferta_id,
         nombre_oferta=None,
         descuento=None,
         fecha_inicio=None,
@@ -135,52 +143,156 @@ class OfertaDAO:
         activa=None
     ):
 
-        oferta = self.buscar_por_id(id)
-
-        if not oferta:
-
-            self.__log.error(
-                f"Actualizar fallido: Oferta ID={id} no existe"
+        o = self.buscar_por_id(oferta_id)
+        if not o:
+            self._log.error(
+                f"Actualizar fallido: Oferta ID={oferta_id} no existe"
             )
+            raise OfertaNoEncontradaError(oferta_id)
 
-            raise OfertaNoEncontradaError(id)
-
-        if nombre_oferta:
-            oferta.nombre_oferta = nombre_oferta
-
-        if descuento is not None:
-            oferta.descuento = descuento
-
-        if fecha_inicio:
-            oferta.fecha_inicio = fecha_inicio
-
-        if fecha_fin:
-            oferta.fecha_fin = fecha_fin
-
-        if activa is not None:
-            oferta.activa = activa
-
-        self.__log.info(
-            f"Oferta actualizada: ID={id}"
+        # Conserva el valor actual cuando no se envía uno nuevo.
+        nuevo_nombre = (
+            nombre_oferta
+            if nombre_oferta is not None
+            else o.nombre_oferta
         )
 
-        return oferta
+        nuevo_descuento = (
+            descuento
+            if descuento is not None
+            else o.descuento
+        )
 
-    # Elimina una oferta
-    def eliminar(self, id):
+        nueva_fecha_inicio = (
+            fecha_inicio
+            if fecha_inicio is not None
+            else o.fecha_inicio
+        )
 
-        oferta = self.buscar_por_id(id)
+        nueva_fecha_fin = (
+            fecha_fin
+            if fecha_fin is not None
+            else o.fecha_fin
+        )
 
-        if not oferta:
+        nueva_activa = (
+            activa
+            if activa is not None
+            else o.activa
+        )
 
-            self.__log.error(
-                f"Eliminar fallido: Oferta ID={id} no existe"
+        # Verifica que el nombre no pertenezca a otra oferta.
+        oferta_nombre = self.buscar_por_nombre(nuevo_nombre)
+        if oferta_nombre and oferta_nombre.id != oferta_id:
+            self._log.warning(f"Oferta duplicada: {nuevo_nombre}")
+            raise OfertaDuplicadaError(nuevo_nombre)
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+
+            """
+            UPDATE Oferta
+            SET
+                nombre_oferta = ?,
+                descuento = ?,
+                fecha_inicio = ?,
+                fecha_fin = ?,
+                activa = ?
+
+            WHERE id_oferta = ?
+
+            """,
+            (
+                nuevo_nombre,
+                nuevo_descuento,
+                nueva_fecha_inicio,
+                nueva_fecha_fin,
+                nueva_activa,
+                oferta_id
             )
 
-            raise OfertaNoEncontradaError(id)
-
-        self.__bd.remove(oferta)
-
-        self.__log.warning(
-            f"Oferta eliminada: ID={id}"
         )
+
+        conn.commit()
+
+        conn.close()
+
+        o.nombre_oferta = nuevo_nombre
+        o.descuento = nuevo_descuento
+        o.fecha_inicio = nueva_fecha_inicio
+        o.fecha_fin = nueva_fecha_fin
+        o.activa = nueva_activa
+
+        self._log.info(f"Oferta actualizada: ID={oferta_id}")
+
+        return o
+
+    def eliminar(self, oferta_id):
+
+        o = self.buscar_por_id(oferta_id)
+        if not o:
+            self._log.error(
+                f"Eliminar fallido: Oferta ID={oferta_id} no existe"
+            )
+            raise OfertaNoEncontradaError(oferta_id)
+
+        conn = obtener_conexion()
+
+        cursor = conn.cursor()
+
+        try:
+
+            # No permite eliminar ofertas asociadas a productos.
+            cursor.execute(
+                """
+
+                DELETE FROM Oferta
+                WHERE id_oferta = ?
+                """,
+
+                (oferta_id,)
+
+            )
+
+            conn.commit()
+            conn.close()
+            self._log.info(f"Oferta eliminada: ID={oferta_id}")
+
+        except sqlite3.IntegrityError:
+
+            conn.close()
+            self._log.warning(
+                f"Eliminar fallido: Oferta ID={oferta_id} tiene productos asociados"
+            )
+            raise OfertaConProductosError(oferta_id)
+
+    def total(self):
+
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+
+            """
+            SELECT COUNT(*)
+            FROM Oferta
+            """
+        )
+
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
+    def _fila_a_oferta(self, fila):
+
+        # Convierte una fila de SQLite en un objeto Oferta.
+        o = Oferta(
+
+            fila["nombre_oferta"],
+            fila["descuento"],
+            fila["fecha_inicio"],
+            fila["fecha_fin"],
+            fila["activa"]
+        )
+
+        o.id = fila["id_oferta"]
+        return o
