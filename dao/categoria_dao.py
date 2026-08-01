@@ -1,44 +1,129 @@
+# ----------------------------------------------------------------------------------
+# EXCEPCIONES PERSONALIZADAS
+#
+# Permiten controlar errores específicos relacionados con la gestión
+# de categorías del sistema.
+# ----------------------------------------------------------------------------------
+
 from config.logger import Logger
+from config.base_datos import obtener_conexion
+import sqlite3
+from modelos.categoria import Categoria
 
 
-# Excepción cuando la categoría no existe
 class CategoriaNoEncontradaError(Exception):
 
-    def __init__(self, id):
-        super().__init__(f"Categoría ID={id} no encontrada")
+    def __init__(self, categoria_id):
 
+        super().__init__(f"Categoría ID={categoria_id} no encontrada")
+
+
+class CategoriaDuplicadaError(Exception):
+
+    def __init__(self, nombre):
+
+        super().__init__(f"La categoría '{nombre}' ya existe")
+
+
+# Se produce cuando una categoría está asociada a uno o más productos.
+class CategoriaConProductosError(Exception):
+
+    def __init__(self, categoria_id):
+
+        super().__init__(
+            f"Categoría ID={categoria_id} no se puede eliminar: tiene productos asociados"
+        )
+
+
+# ----------------------------------------------------------------------------------
+# PATRÓN DAO – CategoriaDAO
+#
+# Encapsula todas las operaciones relacionadas con la tabla Categoria.
+# El resto del sistema accede a la información mediante este DAO.
+# ----------------------------------------------------------------------------------
 
 class CategoriaDAO:
 
     def __init__(self):
-
-        self.__bd = []          # Lista que simula la base de datos
-        self.__cid = 1          # Contador de IDs
-        self.__log = Logger()   # Instancia del Logger
-
-    # Agrega una nueva categoría
+        self._log = Logger()
     def insertar(self, categoria):
+        # Verifica que la categoría no exista previamente.
+        if self.buscar_por_nombre(categoria.nombre_categoria):
 
-        categoria.id = self.__cid
-        self.__cid += 1
+            self._log.warning(
+                f"Categoría duplicada: {categoria.nombre_categoria}"
+            )
+            raise CategoriaDuplicadaError(categoria.nombre_categoria)
 
-        self.__bd.append(categoria)
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        # Los placeholders permiten enviar los datos de forma segura.
+        cursor.execute(
 
-        self.__log.info(
-            f"Categoría agregada: {categoria.nombre_categoria} (ID={categoria.id})"
+            """
+            INSERT INTO Categoria
+            (
+                nombre_categoria,
+                descripcion
+            )
+            VALUES
+            (
+                ?, ?
+            )
+            """,
+
+            (
+                categoria.nombre_categoria,
+
+                categoria.descripcion
+            )
         )
 
+        conn.commit()
+        # Guarda el id generado automáticamente.
+        categoria.id = cursor.lastrowid
+        conn.close()
+        self._log.info(
+            f"Categoría agregada: {categoria.nombre_categoria} (ID={categoria.id})"
+        )
         return categoria
 
-    # Busca una categoría por ID
-    def buscar_por_id(self, id):
+    def buscar_por_nombre(self, nombre):
 
-        for c in self.__bd:
-            if c.id == id:
-                return c
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
 
-        return None
+            """
+            SELECT *
+            FROM Categoria
+            WHERE nombre_categoria = ?
+            """,
 
+            (nombre,)
+        )
+
+        fila = cursor.fetchone()
+        conn.close()
+        return self._fila_a_categoria(fila) if fila else None
+
+    def buscar_por_id(self, categoria_id):
+
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM Categoria
+            WHERE id_categoria = ?
+            """,
+            (categoria_id,)
+
+        )
+
+        fila = cursor.fetchone()
+        conn.close()
+        return self._fila_a_categoria(fila) if fila else None 
     # Devuelve todas las categorías ordenadas
     def obtener_todos(self):
 
@@ -82,7 +167,6 @@ class CategoriaDAO:
             self.__log.error(
                 f"Eliminar fallido: Categoría ID={id} no existe"
             )
-
             raise CategoriaNoEncontradaError(id)
 
         self.__bd.remove(categoria)
