@@ -1,62 +1,125 @@
+# ----------------------------------------------------------------------------------
+# EXCEPCIONES PERSONALIZADAS
+# Permiten controlar errores específicos relacionados con la gestión
+# de productos del sistema.
+# ----------------------------------------------------------------------------------
+
 from config.logger import Logger
+from config.base_datos import obtener_conexion
+import sqlite3
+from modelos.producto import Producto
 
-
-# Excepción cuando el producto no existe
 class ProductoNoEncontradoError(Exception):
+    def __init__(self, producto_id):
+        super().__init__(f"Producto ID={producto_id} no encontrado")
 
-    def __init__(self, id):
-        super().__init__(f"Producto ID={id} no encontrado")
+class ProductoDuplicadoError(Exception):
+    def __init__(self, nombre):
+        super().__init__(f"El producto '{nombre}' ya existe")
 
 
-# Excepción cuando no hay suficiente stock
-class StockInsuficienteError(Exception):
-
-    def __init__(self, stock):
-
+# Se genera cuando el producto posee ventas registradas.
+class ProductoConVentasError(Exception):
+    def __init__(self, producto_id):
         super().__init__(
-            f"Stock insuficiente. Stock disponible: {stock}"
+            f"Producto ID={producto_id} no se puede eliminar: tiene ventas asociadas"
         )
 
+# ----------------------------------------------------------------------------------
+# PATRÓN DAO – ProductoDAO
+#
+# Encapsula todas las operaciones relacionadas con la tabla Producto.
+# ----------------------------------------------------------------------------------
 
 class ProductoDAO:
-
     def __init__(self):
+        self._log = Logger()
 
-        self.__bd = []          # Lista que simula la base de datos
-        self.__pid = 1          # Contador de IDs
-        self.__log = Logger()   # Instancia del Logger
-
-    # Agrega un nuevo producto
     def insertar(self, producto):
+        # Verifica que el producto no exista previamente.
+        if self.buscar_por_nombre(producto.nombre_producto):
+            self._log.warning(
+                f"Producto duplicado: {producto.nombre_producto}"
+            )
+            raise ProductoDuplicadoError(producto.nombre_producto)
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        # Inserta un nuevo producto utilizando parámetros seguros.
+        cursor.execute(
+            """
+            INSERT INTO Producto
+            (
+                nombre_producto,
+                tipo_producto,
+                descripcion_producto,
+                precio,
+                stock,
+                id_categoria,
+                id_oferta
+            )
+            VALUES
+            (
+                ?, ?, ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                producto.nombre_producto,
+                producto.tipo_producto,
+                producto.descripcion_producto,
+                producto.precio,
+                producto.stock,
+                producto.id_categoria,
+                producto.id_oferta
 
-        producto.id = self.__pid
-        self.__pid += 1
-
-        self.__bd.append(producto)
-
-        self.__log.info(
-            f"Producto agregado: {producto.nombre_producto} "
-            f"(ID={producto.id})"
+            )
         )
-
+        conn.commit()
+        # Guarda el identificador generado automáticamente.
+        producto.id = cursor.lastrowid
+        conn.close()
+        self._log.info(
+            f"Producto agregado: {producto.nombre_producto} (ID={producto.id})"
+        )
         return producto
 
-    # Busca un producto por ID
-    def buscar_por_id(self, id):
+    def buscar_por_nombre(self, nombre):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
 
-        for p in self.__bd:
-            if p.id == id:
-                return p
+            """
+            SELECT *
+            FROM Producto
+            WHERE nombre_producto = ?
+            """,
+            (nombre,)
+        )
+        fila = cursor.fetchone()
+        conn.close()
+        return self._fila_a_producto(fila) if fila else None
 
-        return None
+    def buscar_por_id(self, producto_id):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
 
+            """
+            SELECT *
+            FROM Producto
+            WHERE id_producto = ?
+            """,
+            (producto_id,)
+        )
+        fila = cursor.fetchone()
+        conn.close()
+        return self._fila_a_producto(fila) if fila else None
+    
     # Busca un producto por nombre
     def buscar_por_nombre(self, nombre):
 
         for p in self.__bd:
             if p.nombre_producto.lower() == nombre.lower():
                 return p
-
         return None
 
     # Devuelve todos los productos ordenados por nombre
