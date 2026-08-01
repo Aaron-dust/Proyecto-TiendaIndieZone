@@ -1,101 +1,117 @@
+# ----------------------------------------------------------------------------------
+# EXCEPCIONES PERSONALIZADAS
+#
+# Permiten controlar errores específicos relacionados con la gestión
+# de ventas del sistema.
+# ----------------------------------------------------------------------------------
+
 from config.logger import Logger
+from config.base_datos import obtener_conexion
+import sqlite3
+from modelos.venta import Venta
 
 
-# Excepción cuando la venta no existe
 class VentaNoEncontradaError(Exception):
 
-    def __init__(self, id):
-        super().__init__(f"Venta ID={id} no encontrada")
+    def __init__(self, venta_id):
 
+        super().__init__(f"Venta ID={venta_id} no encontrada")
+
+
+# ----------------------------------------------------------------------------------
+# PATRÓN DAO – VentaDAO
+#
+# Encapsula todas las operaciones relacionadas con la tabla Venta.
+# ----------------------------------------------------------------------------------
 
 class VentaDAO:
 
     def __init__(self):
 
-        self.__bd = []          # Lista que simula la base de datos
-        self.__vid = 1          # Contador de IDs
-        self.__log = Logger()   # Instancia del Logger
+        self._log = Logger()
 
-    # Agrega una nueva venta
     def insertar(self, venta):
 
-        venta.id = self.__vid
-        self.__vid += 1
+        conn = obtener_conexion()
 
-        self.__bd.append(venta)
+        cursor = conn.cursor()
 
-        self.__log.info(
+        # Inserta una nueva venta utilizando parámetros seguros.
+        cursor.execute(
+
+            """
+
+            INSERT INTO Venta
+            (
+
+                fecha_venta,
+
+                total_venta,
+
+                id_cliente
+
+            )
+
+            VALUES
+            (
+
+                ?, ?, ?
+
+            )
+
+            """,
+
+            (
+
+                venta.fecha_venta,
+
+                venta.total_venta,
+
+                venta.id_cliente
+
+            )
+
+        )
+
+        conn.commit()
+
+        # Guarda el identificador generado automáticamente.
+        venta.id = cursor.lastrowid
+
+        conn.close()
+
+        self._log.info(
+
             f"Venta registrada: ID={venta.id}"
+
         )
 
         return venta
 
-    # Busca una venta por ID
-    def buscar_por_id(self, id):
+    def buscar_por_id(self, venta_id):
 
-        for v in self.__bd:
-            if v.id == id:
-                return v
+        conn = obtener_conexion()
 
-        return None
+        cursor = conn.cursor()
 
-    # Devuelve todas las ventas
-    def obtener_todos(self):
+        cursor.execute(
 
-        return sorted(
-            self.__bd,
-            key=lambda v: v.id
+            """
+
+            SELECT *
+
+            FROM Venta
+
+            WHERE id_venta = ?
+
+            """,
+
+            (venta_id,)
+
         )
 
-    # Actualiza una venta
-    def actualizar(
-        self,
-        id,
-        fecha_venta=None,
-        total_venta=None,
-        id_cliente=None
-    ):
+        fila = cursor.fetchone()
 
-        venta = self.buscar_por_id(id)
+        conn.close()
 
-        if not venta:
-
-            self.__log.error(
-                f"Actualizar fallido: Venta ID={id} no existe"
-            )
-
-            raise VentaNoEncontradaError(id)
-
-        if fecha_venta:
-            venta.fecha_venta = fecha_venta
-
-        if total_venta is not None:
-            venta.total_venta = total_venta
-
-        if id_cliente is not None:
-            venta.id_cliente = id_cliente
-
-        self.__log.info(
-            f"Venta actualizada: ID={id}"
-        )
-
-        return venta
-
-    # Elimina una venta
-    def eliminar(self, id):
-
-        venta = self.buscar_por_id(id)
-
-        if not venta:
-
-            self.__log.error(
-                f"Eliminar fallido: Venta ID={id} no existe"
-            )
-
-            raise VentaNoEncontradaError(id)
-
-        self.__bd.remove(venta)
-
-        self.__log.warning(
-            f"Venta eliminada: ID={id}"
-        )
+        return self._fila_a_venta(fila) if fila else None
