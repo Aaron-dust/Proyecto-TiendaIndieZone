@@ -9,7 +9,6 @@ from dao.cliente_dao import DNIDuplicadoError
 from dao.categoria_dao import CategoriaNoEncontradaError
 from dao.oferta_dao import OfertaNoEncontradaError
 from dao.producto_dao import ProductoNoEncontradoError
-from dao.producto_dao import StockInsuficienteError
 from dao.venta_dao import VentaNoEncontradaError
 from dao.detalle_venta_dao import DetalleVentaNoEncontradoError
 
