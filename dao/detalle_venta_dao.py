@@ -1,52 +1,27 @@
-from config.logger import Logger
-
-
-# Excepción cuando el detalle no existe
-class DetalleVentaNoEncontradoError(Exception):
-
-    def __init__(self, id_venta):
-        super().__init__(
-            f"Detalle de venta ID={id_venta} no encontrado"
-        )
-
-
-class DetalleVentaDAO:
-
-    def __init__(self):
-
-        self.__bd = []          # Lista que simula la base de datos
-        self.__log = Logger()   # Instancia del Logger
-
-    # Agrega un detalle de venta
-    def insertar(self, detalle):
-
-        self.__bd.append(detalle)
-
-        self.__log.info(
-            f"Detalle agregado a la venta ID={detalle.id_venta}"
-        )
-
-        return detalle
-
-    # Busca un detalle por venta y producto
-    def buscar(self, id_venta, id_producto):
-
-        for d in self.__bd:
-
-            if (
-                d.id_venta == id_venta and
-                d.id_producto == id_producto
-            ):
-                return d
-
-        return None
-
-    # Devuelve todos los detalles registrados
     def obtener_todos(self):
 
-        return self.__bd
+        conn = obtener_conexion()
 
-    # Actualiza un detalle
+        cursor = conn.cursor()
+
+        # SQLite realiza el ordenamiento por id de venta.
+        cursor.execute("""
+
+            SELECT *
+
+            FROM Detalle_Venta
+
+            ORDER BY id_venta
+
+        """)
+
+        filas = cursor.fetchall()
+
+        conn.close()
+
+        # Convierte cada fila de la BD en un objeto DetalleVenta.
+        return [self._fila_a_detalle(f) for f in filas]
+
     def actualizar(
         self,
         id_venta,
@@ -56,46 +31,72 @@ class DetalleVentaDAO:
         subtotal=None
     ):
 
-        detalle = self.buscar(id_venta, id_producto)
+        d = self.buscar(id_venta, id_producto)
 
-        if not detalle:
+        if not d:
 
-            self.__log.error(
-                f"Actualizar fallido: Detalle Venta={id_venta}"
+            self._log.error(
+
+                f"Actualizar fallido: Venta={id_venta} Producto={id_producto}"
+
             )
 
-            raise DetalleVentaNoEncontradoError(id_venta)
+            raise DetalleVentaNoEncontradoError(
+                id_venta,
+                id_producto
+            )
 
-        if cantidad is not None:
-            detalle.cantidad = cantidad
-
-        if precio_unitario is not None:
-            detalle.precio_unitario = precio_unitario
-
-        if subtotal is not None:
-            detalle.subtotal = subtotal
-
-        self.__log.info(
-            f"Detalle actualizado: Venta={id_venta}"
+        # Conserva los valores actuales cuando no se envían nuevos.
+        nueva_cantidad = (
+            cantidad
+            if cantidad is not None
+            else d.cantidad
         )
 
-        return detalle
+        nuevo_precio = (
+            precio_unitario
+            if precio_unitario is not None
+            else d.precio_unitario
+        )
 
-    # Elimina un detalle
-    def eliminar(self, id_venta, id_producto):
+        nuevo_subtotal = (
+            subtotal
+            if subtotal is not None
+            else d.subtotal
+        )
 
-        detalle = self.buscar(id_venta, id_producto)
+        conn = obtener_conexion()
 
-        if not detalle:
+        cursor = conn.cursor()
 
-            self.__log.error(
-                f"Eliminar fallido: Detalle Venta={id_venta}"
+        cursor.execute(
+
+            """
+
+            UPDATE Detalle_Venta
+
+            SET
+
+                cantidad = ?,
+
+                precio_unitario = ?,
+
+                subtotal = ?
+
+            WHERE id_venta = ?
+
+            AND id_producto = ?
+
+            """,
+
+            (
+
+                nueva_cantidad,
+                nuevo_precio,
+                nuevo_subtotal,
+                id_venta,
+                id_producto
+
             )
 
-            raise DetalleVentaNoEncontradoError(id_venta)
-
-        self.__bd.remove(detalle)
-
-        self.__log.warning(
-            f"Detalle eliminado: Venta={id_venta}"
         )
