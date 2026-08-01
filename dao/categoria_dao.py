@@ -124,53 +124,130 @@ class CategoriaDAO:
         fila = cursor.fetchone()
         conn.close()
         return self._fila_a_categoria(fila) if fila else None 
-    # Devuelve todas las categorías ordenadas
     def obtener_todos(self):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
 
-        return sorted(
-            self.__bd,
-            key=lambda c: c.nombre_categoria
+        # SQLite realiza el ordenamiento de los registros.
+        cursor.execute("""
+            SELECT *
+            FROM Categoria
+            ORDER BY nombre_categoria
+        """)
+
+        filas = cursor.fetchall()
+        conn.close()
+        # Convierte cada fila de la BD en un objeto Categoria.
+        return [self._fila_a_categoria(f) for f in filas]
+
+    def actualizar(
+        self,
+        categoria_id,
+        nombre_categoria=None,
+        descripcion=None
+    ):
+
+        c = self.buscar_por_id(categoria_id)
+        if not c:
+            self._log.error(
+                f"Actualizar fallido: Categoría ID={categoria_id} no existe"
+            )
+            raise CategoriaNoEncontradaError(categoria_id)
+        # Conserva el valor actual cuando no se envía uno nuevo.
+        nuevo_nombre = (
+            nombre_categoria
+            if nombre_categoria is not None
+            else c.nombre_categoria
         )
 
-    # Actualiza una categoría
-    def actualizar(self, id, nombre_categoria=None, descripcion=None):
+        nueva_descripcion = (
+            descripcion
+            if descripcion is not None
+            else c.descripcion
+        )
 
-        categoria = self.buscar_por_id(id)
+        # Verifica que el nombre no pertenezca a otra categoría.
+        categoria_nombre = self.buscar_por_nombre(nuevo_nombre)
+        if categoria_nombre and categoria_nombre.id != categoria_id:
+            self._log.warning(f"Categoría duplicada: {nuevo_nombre}")
+            raise CategoriaDuplicadaError(nuevo_nombre)
 
-        if not categoria:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
 
-            self.__log.error(
-                f"Actualizar fallido: Categoría ID={id} no existe"
+            UPDATE Categoria
+            SET
+                nombre_categoria = ?,
+                descripcion = ?
+            WHERE id_categoria = ?
+
+            """,
+            (
+                nuevo_nombre,
+                nueva_descripcion,
+                categoria_id
             )
 
-            raise CategoriaNoEncontradaError(id)
-
-        if nombre_categoria:
-            categoria.nombre_categoria = nombre_categoria
-
-        if descripcion:
-            categoria.descripcion = descripcion
-
-        self.__log.info(
-            f"Categoría actualizada: ID={id}"
         )
+        conn.commit()
+        conn.close()
+        c.nombre_categoria = nuevo_nombre
+        c.descripcion = nueva_descripcion
+        self._log.info(f"Categoría actualizada: ID={categoria_id}")
+        return c
 
-        return categoria
+    def eliminar(self, categoria_id):
+        c = self.buscar_por_id(categoria_id)
+        if not c:
 
-    # Elimina una categoría
-    def eliminar(self, id):
-
-        categoria = self.buscar_por_id(id)
-
-        if not categoria:
-
-            self.__log.error(
-                f"Eliminar fallido: Categoría ID={id} no existe"
+            self._log.error(
+                f"Eliminar fallido: Categoría ID={categoria_id} no existe"
             )
-            raise CategoriaNoEncontradaError(id)
+            raise CategoriaNoEncontradaError(categoria_id)
 
-        self.__bd.remove(categoria)
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        try:
+            # No permite eliminar categorías asociadas a productos.
+            cursor.execute(
+                """
+                DELETE FROM Categoria
+                WHERE id_categoria = ?
+                """,
+                (categoria_id,)
 
-        self.__log.warning(
-            f"Categoría eliminada: ID={id}"
+            )
+            conn.commit()
+            conn.close()
+            self._log.info(f"Categoría eliminada: ID={categoria_id}")
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            self._log.warning(
+                f"Eliminar fallido: Categoría ID={categoria_id} tiene productos asociados"
+            )
+            raise CategoriaConProductosError(categoria_id)
+
+    def total(self):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM Categoria
+            """
         )
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
+    def _fila_a_categoria(self, fila):
+        # Convierte una fila de SQLite en un objeto Categoria.
+        c = Categoria(
+            fila["nombre_categoria"],
+            fila["descripcion"]
+        )
+        c.id = fila["id_categoria"]
+        return c
