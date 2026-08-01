@@ -93,6 +93,7 @@ class ProductoDAO:
             WHERE nombre_producto = ?
             """,
             (nombre,)
+
         )
         fila = cursor.fetchone()
         conn.close()
@@ -109,19 +110,11 @@ class ProductoDAO:
             WHERE id_producto = ?
             """,
             (producto_id,)
+
         )
         fila = cursor.fetchone()
         conn.close()
         return self._fila_a_producto(fila) if fila else None
-    
-    # Busca un producto por nombre
-    def buscar_por_nombre(self, nombre):
-
-        for p in self.__bd:
-            if p.nombre_producto.lower() == nombre.lower():
-                return p
-        return None
-
     # Devuelve todos los productos ordenados por nombre
     def obtener_todos(self):
 
