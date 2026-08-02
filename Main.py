@@ -1,4 +1,13 @@
+# ----------------------------------------------------------------------------------
+# ORQUESTADOR – main()
+#
+# Crea los objetos necesarios una sola vez y entra al bucle del menú.
+# No tiene lógica propia: conecta los objetos y dirige el flujo.
+# ----------------------------------------------------------------------------------
+
+from config.base_datos import inicializar
 from config.sistema_config import SistemaConfig
+from config.logger import Logger
 
 from dao.cliente_dao import ClienteDAO
 from dao.categoria_dao import CategoriaDAO
@@ -7,256 +16,98 @@ from dao.producto_dao import ProductoDAO
 from dao.venta_dao import VentaDAO
 from dao.detalle_venta_dao import DetalleVentaDAO
 
-from vistas.menu import *
+from vistas.menu import (
+    mostrar_menu,
+    menu_clientes,
+    menu_categorias,
+    menu_ofertas,
+    menu_productos,
+    menu_ventas,
+    menu_detalle_ventas
+)
 
-# Configuración del sistema
-cfg = SistemaConfig()
 
-# Objetos DAO
-cdao = ClienteDAO()
-catdao = CategoriaDAO()
-odao = OfertaDAO()
-pdao = ProductoDAO()
-vdao = VentaDAO()
-dvdao = DetalleVentaDAO()
+def main():
 
-# Variable para controlar el programa
-salir = False
+    # Crea la base de datos y las tablas si todavía no existen.
+    inicializar()
 
-while not salir:
+    # Configuración general del sistema.
+    cfg = SistemaConfig()
 
-    mostrar_menu(cfg)
+    # Crear una única instancia de cada DAO.
+    cdao = ClienteDAO()
+    catdao = CategoriaDAO()
+    odao = OfertaDAO()
+    pdao = ProductoDAO()
+    vdao = VentaDAO()
+    ddao = DetalleVentaDAO()
 
-    try:
+    while True:
 
-        opcion = int(input("\nSeleccione una opción: "))
+        mostrar_menu(cfg)
+
+        opcion = input("  Elige una opción: ").strip()
 
         match opcion:
 
-            # Agregar
-            case 1:
-                agregar_cliente(cdao)
+            case "1":
 
-            case 2:
-                agregar_categoria(catdao)
+                menu_clientes(cdao)
 
-            case 3:
-                agregar_oferta(odao)
+            case "2":
 
-            case 4:
-                agregar_producto(pdao)
+                menu_categorias(catdao)
 
-            case 5:
-                registrar_venta(vdao)
+            case "3":
 
-            case 6:
-                agregar_detalle(dvdao)
+                menu_ofertas(odao)
 
-            # Listar
-            case 7:
-                listar_clientes(cdao)
+            case "4":
 
-            case 8:
-                listar_categorias(catdao)
+                menu_productos(pdao)
 
-            case 9:
-                listar_ofertas(odao)
+            case "5":
 
-            case 10:
-                listar_productos(pdao)
+                menu_ventas(vdao)
 
-            case 11:
-                listar_ventas(vdao)
+            case "6":
 
-            case 12:
-                listar_detalles(dvdao)
+                menu_detalle_ventas(ddao)
 
-            # Eliminar
-            case 13:
-                eliminar_cliente(cdao)
+            case "7":
 
-            case 14:
-                eliminar_categoria(catdao)
+                from vistas.menu import ver_clientes_json
+                ver_clientes_json(cdao)
 
-            case 15:
-                eliminar_oferta(odao)
+            case "8":
 
-            case 16:
-                eliminar_producto(pdao)
+                from vistas.menu import ver_productos_json
+                ver_productos_json(pdao)
 
-            case 17:
-                eliminar_venta(vdao)
+            case "9":
 
-            case 18:
-                eliminar_detalle(dvdao)
+                Logger().mostrar_logs()
 
-            # Actualizar
-            case 19:
-                actualizar_cliente(cdao)
+            case "10":
 
-            case 20:
-                actualizar_categoria(catdao)
+                Logger().limpiar()
 
-            case 21:
-                actualizar_oferta(odao)
+            case "0":
 
-            case 22:
-                actualizar_producto(pdao)
+                Logger().info("Sistema cerrado por el usuario")
 
-            case 23:
-                actualizar_venta(vdao)
+                print("\nHasta luego.")
 
-            case 24:
-                actualizar_detalle(dvdao)
-            
-            case 25:
-                cfg.logger.mostrar_logs()
-
-            case 26:
-                cfg.logger.limpiar()
-
-            # Salir
-            case 0:
-
-                print("\nGracias por utilizar TiendaIndieZone.")
-
-                salir = True
+                break
 
             case _:
 
                 print("\nOpción no válida.")
 
-    except ValueError:
 
-        print("\nDebe ingresar un número.")
-from config.sistema_config import SistemaConfig
+# Evita que main() se ejecute cuando el archivo es importado.
 
-from dao.cliente_dao import ClienteDAO
-from dao.categoria_dao import CategoriaDAO
-from dao.oferta_dao import OfertaDAO
-from dao.producto_dao import ProductoDAO
-from dao.venta_dao import VentaDAO
-from dao.detalle_venta_dao import DetalleVentaDAO
+if __name__ == "__main__":
 
-from vistas.menu import *
-
-# Configuración del sistema
-cfg = SistemaConfig()
-
-# Objetos DAO
-cdao = ClienteDAO()
-catdao = CategoriaDAO()
-odao = OfertaDAO()
-pdao = ProductoDAO()
-vdao = VentaDAO()
-dvdao = DetalleVentaDAO()
-
-# Variable para controlar el programa
-salir = False
-
-while not salir:
-
-    mostrar_menu(cfg)
-
-    try:
-
-        opcion = int(input("\nSeleccione una opción: "))
-
-        match opcion:
-
-            # Agregar
-            case 1:
-                agregar_cliente(cdao)
-
-            case 2:
-                agregar_categoria(catdao)
-
-            case 3:
-                agregar_oferta(odao)
-
-            case 4:
-                agregar_producto(pdao)
-
-            case 5:
-                registrar_venta(vdao)
-
-            case 6:
-                agregar_detalle(dvdao)
-
-            # Listar
-            case 7:
-                listar_clientes(cdao)
-
-            case 8:
-                listar_categorias(catdao)
-
-            case 9:
-                listar_ofertas(odao)
-
-            case 10:
-                listar_productos(pdao)
-
-            case 11:
-                listar_ventas(vdao)
-
-            case 12:
-                listar_detalles(dvdao)
-
-            # Eliminar
-            case 13:
-                eliminar_cliente(cdao)
-
-            case 14:
-                eliminar_categoria(catdao)
-
-            case 15:
-                eliminar_oferta(odao)
-
-            case 16:
-                eliminar_producto(pdao)
-
-            case 17:
-                eliminar_venta(vdao)
-
-            case 18:
-                eliminar_detalle(dvdao)
-
-            # Actualizar
-            case 19:
-                actualizar_cliente(cdao)
-
-            case 20:
-                actualizar_categoria(catdao)
-
-            case 21:
-                actualizar_oferta(odao)
-
-            case 22:
-                actualizar_producto(pdao)
-
-            case 23:
-                actualizar_venta(vdao)
-
-            case 24:
-                actualizar_detalle(dvdao)
-            
-            case 25:
-                cfg.logger.mostrar_logs()
-
-            case 26:
-                cfg.logger.limpiar()
-
-            # Salir
-            case 0:
-
-                print("\nGracias por utilizar TiendaIndieZone.")
-
-                salir = True
-
-            case _:
-
-                print("\nOpción no válida.")
-
-    except ValueError:
-
-        print("\nDebe ingresar un número.")
+    main()
