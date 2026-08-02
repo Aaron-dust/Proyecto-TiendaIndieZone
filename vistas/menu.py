@@ -11,7 +11,6 @@ from dao.oferta_dao import OfertaDAO
 from dao.producto_dao import ProductoDAO
 from dao.venta_dao import VentaDAO
 from dao.detalle_venta_dao import DetalleVentaDAO
-
 from modelos.cliente import Cliente
 from modelos.categoria import Categoria
 from modelos.oferta import Oferta
@@ -19,11 +18,10 @@ from modelos.producto import Producto
 from modelos.venta import Venta
 from modelos.detalle_venta import DetalleVenta
 
-
 class Menu:
 
     def __init__(self):
-
+    
         # Se crea una instancia de cada DAO.
         self.clientes = ClienteDAO()
         self.categorias = CategoriaDAO()
@@ -35,9 +33,7 @@ class Menu:
     # ------------------------------------------------------------------
 
     def iniciar(self):
-
         while True:
-
             print("\n==========================================")
             print("        TIENDA INDIE ZONE")
             print("==========================================")
@@ -49,43 +45,25 @@ class Menu:
             print("6. Detalle Venta")
             print("0. Salir")
             print("==========================================")
-
             opcion = input("Seleccione una opción: ")
 
             if opcion == "1":
-
                 self.menu_clientes()
-
             elif opcion == "2":
-
                 self.menu_categorias()
-
             elif opcion == "3":
-
                 self.menu_ofertas()
-
             elif opcion == "4":
-
                 self.menu_productos()
-
             elif opcion == "5":
-
                 self.menu_ventas()
-
             elif opcion == "6":
-
                 self.menu_detalle_venta()
-
             elif opcion == "0":
-
                 print("\nSistema finalizado.")
-
                 break
-
             else:
-
                 print("\nOpción inválida.")
-                
 # ------------------------------------------------------------------
 # MENÚ CLIENTES
 # ------------------------------------------------------------------
@@ -125,8 +103,8 @@ class Menu:
                     print("\nCliente registrado correctamente.")
                 except Exception as ex:
                     print(ex)
-            elif opcion == "2":
 
+            elif opcion == "2":
                 try:
                     cliente_id = int(input("ID del cliente: "))
                     cliente = self.clientes.buscar_por_id(cliente_id)
@@ -136,8 +114,8 @@ class Menu:
                         print("Cliente no encontrado.")
                 except Exception as ex:
                     print(ex)
-            elif opcion == "3":
 
+            elif opcion == "3":
                 try:
                     clientes = self.clientes.obtener_todos()
                     if len(clientes) == 0:
@@ -147,8 +125,8 @@ class Menu:
                             print(cliente)
                 except Exception as ex:
                     print(ex)
-            elif opcion == "4":
 
+            elif opcion == "4":
                 try:
                     cliente_id = int(input("ID del cliente: "))
                     nombre = input("Nuevo nombre: ")
@@ -165,18 +143,20 @@ class Menu:
                     print("\nCliente actualizado correctamente.")
                 except Exception as ex:
                     print(ex)
-            elif opcion == "5":
 
+            elif opcion == "5":
                 try:
                     cliente_id = int(input("ID del cliente: "))
                     self.clientes.eliminar(cliente_id)
                     print("\nCliente eliminado correctamente.")
                 except Exception as ex:
                     print(ex)
+
             elif opcion == "6":
                 print(
                     f"\nTotal de clientes: {self.clientes.total()}"
                 )
+
             elif opcion == "0":
                 break
             else:
