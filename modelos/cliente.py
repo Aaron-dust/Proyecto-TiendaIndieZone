@@ -1,10 +1,15 @@
-
-# Modelo que representa un cliente de la tienda
+# ----------------------------------------------------------------------------------
+# MODELO – Cliente
+#
+# Clase que representa a un cliente de la tienda.
+# Solo almacena los datos; la gestión se realiza mediante el DAO.
+# ----------------------------------------------------------------------------------
 
 class Cliente:
 
     def __init__(self, nombre, apellido, dni, correo, telefono, fecha_registro):
 
+        # El ID es asignado automáticamente por el DAO al registrar el cliente.
         self.id = None
         self.nombre = nombre
         self.apellido = apellido
@@ -13,40 +18,49 @@ class Cliente:
         self.telefono = telefono
         self.fecha_registro = fecha_registro
 
-    # Muestra la información del cliente
     def __str__(self):
 
         return (
+
             f"[{self.id}] "
             f"{self.nombre} {self.apellido} | "
             f"DNI: {self.dni} | "
             f"{self.correo} | "
             f"{self.telefono} | "
             f"Registro: {self.fecha_registro}"
-        )    
 
-# Modelo que representa un cliente de la tienda
+        )
 
-class Cliente:
+    # Convierte el objeto a diccionario (necesario para JSON)
+    def to_dict(self):
 
-    def __init__(self, nombre, apellido, dni, correo, telefono, fecha_registro):
+        return {
 
-        self.id = None
-        self.nombre = nombre
-        self.apellido = apellido
-        self.dni = dni
-        self.correo = correo
-        self.telefono = telefono
-        self.fecha_registro = fecha_registro
+            "id": self.id,
+            "nombre": self.nombre,
+            "apellido": self.apellido,
+            "dni": self.dni,
+            "correo": self.correo,
+            "telefono": self.telefono,
+            "fecha_registro": self.fecha_registro
 
-    # Muestra la información del cliente
-    def __str__(self):
+        }
 
-        return (
-            f"[{self.id}] "
-            f"{self.nombre} {self.apellido} | "
-            f"DNI: {self.dni} | "
-            f"{self.correo} | "
-            f"{self.telefono} | "
-            f"Registro: {self.fecha_registro}"
-        )    
+    # Crea un objeto Cliente desde un diccionario
+    @classmethod
+    def from_dict(cls, datos):
+
+        cliente = cls(
+
+            datos["nombre"],
+            datos["apellido"],
+            datos["dni"],
+            datos["correo"],
+            datos["telefono"],
+            datos["fecha_registro"]
+
+        )
+
+        cliente.id = datos["id"]
+
+        return cliente
