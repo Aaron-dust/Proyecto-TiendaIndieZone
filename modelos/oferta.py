@@ -1,4 +1,8 @@
-# Modelo que representa una oferta disponible
+# ----------------------------------------------------------------------------------
+# MODELO – Oferta
+#
+# Clase que representa una oferta registrada en el sistema.
+# ----------------------------------------------------------------------------------
 
 class Oferta:
 
@@ -11,15 +15,42 @@ class Oferta:
         self.fecha_fin = fecha_fin
         self.activa = activa
 
-    # Muestra la información de la oferta
     def __str__(self):
 
-        estado = "Activa" if self.activa else "Inactiva"
-
         return (
-            f"[{self.id}] "
-            f"{self.nombre_oferta} | "
-            f"Descuento: {self.descuento}% | "
-            f"{self.fecha_inicio} - {self.fecha_fin} | "
-            f"{estado}"
+
+            f"[{self.id}] {self.nombre_oferta} | "
+            f"{self.descuento}% | "
+            f"{self.fecha_inicio} - {self.fecha_fin}"
+
         )
+
+    def to_dict(self):
+
+        return {
+
+            "id": self.id,
+            "nombre_oferta": self.nombre_oferta,
+            "descuento": self.descuento,
+            "fecha_inicio": self.fecha_inicio,
+            "fecha_fin": self.fecha_fin,
+            "activa": self.activa
+
+        }
+
+    @classmethod
+    def from_dict(cls, datos):
+
+        oferta = cls(
+
+            datos["nombre_oferta"],
+            datos["descuento"],
+            datos["fecha_inicio"],
+            datos["fecha_fin"],
+            datos["activa"]
+
+        )
+
+        oferta.id = datos["id"]
+
+        return oferta
