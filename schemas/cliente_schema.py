@@ -1,7 +1,7 @@
 import re
 from pydantic import BaseModel, field_validator
 from typing import Optional
-
+from datetime import date
 class ClienteCrear(BaseModel):
     nombre: str
     apellido: str
@@ -38,4 +38,4 @@ class ClienteRespuesta(BaseModel):
     dni: str
     correo: str
     telefono: str
-    fecha_registro: str
+    fecha_registro: date

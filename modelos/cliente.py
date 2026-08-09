@@ -1,10 +1,3 @@
-# ----------------------------------------------------------------------------------
-# MODELO – Cliente
-#
-# Clase que representa a un cliente de la tienda.
-# Solo almacena los datos; la gestión se realiza mediante el DAO.
-# ----------------------------------------------------------------------------------
-
 class Cliente:
 
     def __init__(self, nombre, apellido, dni, correo, telefono, fecha_registro):
@@ -21,29 +14,24 @@ class Cliente:
     def __str__(self):
 
         return (
-
             f"[{self.id}] "
             f"{self.nombre} {self.apellido} | "
             f"DNI: {self.dni} | "
             f"{self.correo} | "
             f"{self.telefono} | "
             f"Registro: {self.fecha_registro}"
-
         )
 
     # Convierte el objeto a diccionario (necesario para JSON)
     def to_dict(self):
-
         return {
-
-            "id": self.id,
+            "id_cliente": self.id,
             "nombre": self.nombre,
             "apellido": self.apellido,
             "dni": self.dni,
             "correo": self.correo,
             "telefono": self.telefono,
             "fecha_registro": self.fecha_registro
-
         }
 
     # Crea un objeto Cliente desde un diccionario
@@ -51,14 +39,12 @@ class Cliente:
     def from_dict(cls, datos):
 
         cliente = cls(
-
             datos["nombre"],
             datos["apellido"],
             datos["dni"],
             datos["correo"],
             datos["telefono"],
             datos["fecha_registro"]
-
         )
 
         cliente.id = datos["id"]

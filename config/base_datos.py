@@ -9,7 +9,7 @@ def obtener_conexion():
         port=os.getenv("DB_PORT", "5432"),
         database=os.getenv("DB_NAME", "tiendaindiezone"),
         user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "")
+        password=os.getenv("DB_PASSWORD", "admin123")
     )
 
     conn.cursor_factory = RealDictCursor
