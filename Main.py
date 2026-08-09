@@ -39,7 +39,7 @@ def main():
     cdao = ClienteDAO()
     catdao = CategoriaDAO()
     odao = OfertaDAO()
-    pdao = ProductoDAO()
+    pdao = ProductoDAO() 
     vdao = VentaDAO()
     ddao = DetalleVentaDAO()
 
