@@ -1,11 +1,17 @@
-from fastapi import APIRouter, HTTPException
+# ----------------------------------------------------------------------------------
+# ROUTER – Categorias
+#
+# Endpoints de FastAPI para gestionar las categorías.
+# ----------------------------------------------------------------------------------
 
+from fastapi import APIRouter, HTTPException
 from dao.categoria_dao import (
     CategoriaDAO,
     CategoriaNoEncontradaError,
     CategoriaDuplicadaError,
     CategoriaConProductosError
 )
+
 from modelos.categoria import Categoria
 from schemas.categoria_schema import (
     CategoriaCrear,
@@ -19,19 +25,31 @@ router = APIRouter(
 )
 dao = CategoriaDAO()
 
-@router.get("/", response_model=list[CategoriaRespuesta])
+@router.get(
+    "/",
+    response_model=list[CategoriaRespuesta]
+)
 def listar_categorias():
-    return [c.to_dict() for c in dao.obtener_todos()]
+    categorias = dao.obtener_todos()
+    return [
+        categoria.to_dict()
+        for categoria in categorias
+    ]
 
-@router.get("/{categoria_id}", response_model=CategoriaRespuesta)
+@router.get(
+    "/{categoria_id}",
+    response_model=CategoriaRespuesta
+)
 def obtener_categoria(categoria_id: int):
-    c = dao.buscar_por_id(categoria_id)
-    if not c:
+    categoria = dao.buscar_por_id(
+        categoria_id
+    )
+    if not categoria:
         raise HTTPException(
             status_code=404,
             detail=f"Categoría ID={categoria_id} no encontrada"
         )
-    return c.to_dict()
+    return categoria.to_dict()
 
 @router.post(
     "/",
@@ -39,14 +57,15 @@ def obtener_categoria(categoria_id: int):
     status_code=201
 )
 def crear_categoria(datos: CategoriaCrear):
-
     try:
-        c = Categoria(
-            datos.nombre,
-            datos.descripcion
+        categoria = Categoria(
+            nombre=datos.nombre,
+            descripcion=datos.descripcion
         )
-        c = dao.insertar(c)
-        return c.to_dict()
+        categoria = dao.insertar(
+            categoria
+        )
+        return categoria.to_dict()
     except CategoriaDuplicadaError as ex:
         raise HTTPException(
             status_code=400,
@@ -62,13 +81,13 @@ def actualizar_categoria(
     datos: CategoriaActualizar
 ):
     try:
-        c = dao.actualizar(
-            categoria_id,
-            datos.nombre,
-            datos.descripcion
+        categoria = dao.actualizar(
+            categoria_id=categoria_id,
+            nombre=datos.nombre,
+            descripcion=datos.descripcion
         )
-        return c.to_dict()
 
+        return categoria.to_dict()
     except CategoriaNoEncontradaError as ex:
         raise HTTPException(
             status_code=404,
@@ -80,13 +99,19 @@ def actualizar_categoria(
             detail=str(ex)
         )
 
-@router.delete("/{categoria_id}")
+@router.delete(
+    "/{categoria_id}"
+)
 def eliminar_categoria(categoria_id: int):
-
     try:
-        dao.eliminar(categoria_id)
+        dao.eliminar(
+            categoria_id
+        )
         return {
-            "mensaje": f"Categoría ID={categoria_id} eliminada"
+            "mensaje": (
+                f"Categoría ID={categoria_id} "
+                f"eliminada correctamente"
+            )
         }
     except CategoriaNoEncontradaError as ex:
         raise HTTPException(
