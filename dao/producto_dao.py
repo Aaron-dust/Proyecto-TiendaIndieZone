@@ -4,41 +4,44 @@
 # Permiten controlar errores específicos relacionados con la gestión
 # de productos del sistema.
 # ----------------------------------------------------------------------------------
-import psycopg2
 from config.logger import Logger
 from config.base_datos import obtener_conexion
 from modelos.producto import Producto
+import psycopg2
+
 class ProductoNoEncontradoError(Exception):
     def __init__(self, producto_id):
-        super().__init__(f"Producto ID={producto_id} no encontrado")
+        super().__init__(
+            f"Producto ID={producto_id} no encontrado"
+        )
+
 class ProductoDuplicadoError(Exception):
-    def __init__(self, nombre):
-        super().__init__(f"El producto '{nombre}' ya existe")
-# Se genera cuando el producto posee ventas registradas.
+    def __init__(self, nombre_producto):
+        super().__init__(
+            f"El producto '{nombre_producto}' ya existe"
+        )
+
 class ProductoConVentasError(Exception):
     def __init__(self, producto_id):
         super().__init__(
-            f"Producto ID={producto_id} no se puede eliminar: tiene ventas asociadas"
+            f"Producto ID={producto_id} no se puede eliminar: "
+            f"tiene ventas asociadas"
         )
 
-# ----------------------------------------------------------------------------------
-# PATRÓN DAO – ProductoDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Producto.
-# ----------------------------------------------------------------------------------
 class ProductoDAO:
     def __init__(self):
         self._log = Logger()
+
     def insertar(self, producto):
-        # Verifica que el producto no exista previamente.
-        if self.buscar_por_nombre(producto.nombre_producto):
-            self._log.warning(
-                f"Producto duplicado: {producto.nombre_producto}"
+        # Verifica si el producto ya existe
+        if self.buscar_por_nombre(
+            producto.nombre_producto
+        ):
+            raise ProductoDuplicadoError(
+                producto.nombre_producto
             )
-            raise ProductoDuplicadoError(producto.nombre_producto)
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Inserta un nuevo producto utilizando parámetros seguros.
         cursor.execute(
             """
             INSERT INTO producto
@@ -67,16 +70,18 @@ class ProductoDAO:
                 producto.id_oferta
             )
         )
+        fila = cursor.fetchone()
+        producto.id_producto = fila["id_producto"]
         conn.commit()
-        # Guarda el identificador generado automáticamente.
-        producto.id = cursor.fetchone()["id_producto"]
+        cursor.close()
         conn.close()
         self._log.info(
             f"Producto agregado: {producto.nombre_producto} "
-            f"(ID={producto.id})"
+            f"(ID={producto.id_producto})"
         )
         return producto
-    def buscar_por_nombre(self, nombre):
+
+    def buscar_por_nombre(self, nombre_producto):
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
@@ -85,9 +90,10 @@ class ProductoDAO:
             FROM producto
             WHERE nombre_producto = %s
             """,
-            (nombre,)
+            (nombre_producto,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
         return self._fila_a_producto(fila) if fila else None
 
@@ -103,14 +109,13 @@ class ProductoDAO:
             (producto_id,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
         return self._fila_a_producto(fila) if fila else None
 
-    # Devuelve todos los productos ordenados por nombre
     def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento de los registros.
         cursor.execute(
             """
             SELECT *
@@ -119,9 +124,13 @@ class ProductoDAO:
             """
         )
         filas = cursor.fetchall()
+        cursor.close()
         conn.close()
-        # Convierte cada fila de la BD en un objeto Producto.
-        return [self._fila_a_producto(f) for f in filas]
+
+        return [
+            self._fila_a_producto(fila)
+            for fila in filas
+        ]
 
     def actualizar(
         self,
@@ -134,56 +143,61 @@ class ProductoDAO:
         id_categoria=None,
         id_oferta=None
     ):
-        p = self.buscar_por_id(producto_id)
-        if not p:
-            self._log.error(
-                f"Actualizar fallido: Producto ID={producto_id} no existe"
+        producto = self.buscar_por_id(
+            producto_id
+        )
+        if not producto:
+            raise ProductoNoEncontradoError(
+                producto_id
             )
-            raise ProductoNoEncontradoError(producto_id)
-        # Conserva el valor actual cuando no se envía uno nuevo.
         nuevo_nombre = (
             nombre_producto
             if nombre_producto is not None
-            else p.nombre_producto
+            else producto.nombre_producto
         )
         nuevo_tipo = (
             tipo_producto
             if tipo_producto is not None
-            else p.tipo_producto
+            else producto.tipo_producto
         )
+
         nueva_descripcion = (
             descripcion_producto
             if descripcion_producto is not None
-            else p.descripcion_producto
+            else producto.descripcion_producto
         )
         nuevo_precio = (
             precio
             if precio is not None
-            else p.precio
+            else producto.precio
         )
         nuevo_stock = (
             stock
             if stock is not None
-            else p.stock
+            else producto.stock
         )
         nueva_categoria = (
             id_categoria
             if id_categoria is not None
-            else p.id_categoria
+            else producto.id_categoria
         )
         nueva_oferta = (
             id_oferta
             if id_oferta is not None
-            else p.id_oferta
+            else producto.id_oferta
         )
-        # Verifica que el nombre no pertenezca a otro producto.
-        producto_nombre = self.buscar_por_nombre(nuevo_nombre)
+        # Comprueba que el nombre no pertenezca a otro producto
+        otro_producto = self.buscar_por_nombre(
+            nuevo_nombre
+        )
 
-        if producto_nombre and producto_nombre.id != producto_id:
-            self._log.warning(
-                f"Producto duplicado: {nuevo_nombre}"
+        if (
+            otro_producto
+            and otro_producto.id_producto != producto_id
+        ):
+            raise ProductoDuplicadoError(
+                nuevo_nombre
             )
-            raise ProductoDuplicadoError(nuevo_nombre)
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
@@ -211,30 +225,31 @@ class ProductoDAO:
             )
         )
         conn.commit()
+        cursor.close()
         conn.close()
-
-        p.nombre_producto = nuevo_nombre
-        p.tipo_producto = nuevo_tipo
-        p.descripcion_producto = nueva_descripcion
-        p.precio = nuevo_precio
-        p.stock = nuevo_stock
-        p.id_categoria = nueva_categoria
-        p.id_oferta = nueva_oferta
+        producto.nombre_producto = nuevo_nombre
+        producto.tipo_producto = nuevo_tipo
+        producto.descripcion_producto = nueva_descripcion
+        producto.precio = nuevo_precio
+        producto.stock = nuevo_stock
+        producto.id_categoria = nueva_categoria
+        producto.id_oferta = nueva_oferta
         self._log.info(
             f"Producto actualizado: ID={producto_id}"
         )
-        return p
+        return producto
+
     def eliminar(self, producto_id):
-        p = self.buscar_por_id(producto_id)
-        if not p:
-            self._log.error(
-                f"Eliminar fallido: Producto ID={producto_id} no existe"
+        producto = self.buscar_por_id(
+            producto_id
+        )
+        if not producto:
+            raise ProductoNoEncontradoError(
+                producto_id
             )
-            raise ProductoNoEncontradoError(producto_id)
         conn = obtener_conexion()
         cursor = conn.cursor()
         try:
-            # No permite eliminar productos asociados a ventas.
             cursor.execute(
                 """
                 DELETE FROM producto
@@ -243,18 +258,17 @@ class ProductoDAO:
                 (producto_id,)
             )
             conn.commit()
-            conn.close()
             self._log.info(
                 f"Producto eliminado: ID={producto_id}"
             )
         except psycopg2.IntegrityError:
             conn.rollback()
-            conn.close()
-            self._log.warning(
-                f"Eliminar fallido: Producto ID={producto_id} "
-                f"tiene ventas asociadas"
+            raise ProductoConVentasError(
+                producto_id
             )
-            raise ProductoConVentasError(producto_id)
+        finally:
+            cursor.close()
+            conn.close()
 
     def total(self):
         conn = obtener_conexion()
@@ -266,12 +280,12 @@ class ProductoDAO:
             """
         )
         total = cursor.fetchone()["total"]
+        cursor.close()
         conn.close()
         return total
 
     def _fila_a_producto(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto Producto.
-        p = Producto(
+        producto = Producto(
             fila["nombre_producto"],
             fila["tipo_producto"],
             fila["descripcion_producto"],
@@ -280,5 +294,5 @@ class ProductoDAO:
             fila["id_categoria"],
             fila["id_oferta"]
         )
-        p.id = fila["id_producto"]
-        return p
+        producto.id_producto = fila["id_producto"]
+        return producto
