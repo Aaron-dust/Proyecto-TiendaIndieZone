@@ -10,25 +10,17 @@ from config.base_datos import obtener_conexion
 from modelos.venta import Venta
 
 class VentaNoEncontradaError(Exception):
-
     def __init__(self, venta_id):
-        super().__init__(f"Venta ID={venta_id} no encontrada")
+        super().__init__(
+            f"Venta ID={venta_id} no encontrada"
+        )
 
-# ---------------------------------------------------------------------------------
-# PATRÓN DAO – VentaDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Venta.
-#
-# Las ventas no se actualizan ni se eliminan, debido a las reglas de negocio
-# establecidas para el sistema.
-# ---------------------------------------------------------------------------------
 class VentaDAO:
     def __init__(self):
         self._log = Logger()
     def insertar(self, venta):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Inserta una nueva venta utilizando parámetros seguros.
         cursor.execute(
             """
             INSERT INTO venta
@@ -49,12 +41,13 @@ class VentaDAO:
                 venta.id_cliente
             )
         )
-        # Guarda el identificador generado automáticamente.
-        venta.id = cursor.fetchone()["id_venta"]
+        fila = cursor.fetchone()
+        venta.id_venta = fila["id_venta"]
         conn.commit()
+        cursor.close()
         conn.close()
         self._log.info(
-            f"Venta registrada: ID={venta.id}"
+            f"Venta registrada: ID={venta.id_venta}"
         )
         return venta
 
@@ -70,44 +63,50 @@ class VentaDAO:
             (venta_id,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return self._fila_a_venta(fila) if fila else None
+        if fila:
+            return self._fila_a_venta(fila)
+        return None
 
     def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento por fecha de venta.
         cursor.execute(
             """
             SELECT *
             FROM venta
-            ORDER BY fecha_venta
+            ORDER BY id_venta
             """
         )
         filas = cursor.fetchall()
+        cursor.close()
         conn.close()
-        # Convierte cada fila de la BD en un objeto Venta.
-        return [self._fila_a_venta(f) for f in filas]
+        return [
+            self._fila_a_venta(fila)
+            for fila in filas
+        ]
 
     def total(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
+
         cursor.execute(
             """
             SELECT COUNT(*) AS total
             FROM venta
             """
         )
-        total = cursor.fetchone()["total"]
+        fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return total
+        return fila["total"]
 
     def _fila_a_venta(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto Venta.
-        v = Venta(
+        venta = Venta(
             fila["fecha_venta"],
             fila["total_venta"],
             fila["id_cliente"]
         )
-        v.id = fila["id_venta"]
-        return v
+        venta.id_venta = fila["id_venta"]
+        return venta
