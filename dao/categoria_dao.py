@@ -1,26 +1,34 @@
 # ----------------------------------------------------------------------------------
 # EXCEPCIONES PERSONALIZADAS
 #
-# Permiten controlar errores específicos relacionados con la gestión
-# de categorías del sistema.
+# Permiten controlar errores específicos relacionados con la gestión de categorías del sistema.
+# ----------------------------------------------------------------------------------
+# DAO – Categoria
+#
+# Gestiona las operaciones de la tabla categoria en PostgreSQL.
 # ----------------------------------------------------------------------------------
 
 from config.logger import Logger
 from config.base_datos import obtener_conexion
+
 import psycopg2
+
 from modelos.categoria import Categoria
 
 class CategoriaNoEncontradaError(Exception):
+
     def __init__(self, categoria_id):
+
         super().__init__(
             f"Categoría ID={categoria_id} no encontrada"
         )
+
 class CategoriaDuplicadaError(Exception):
     def __init__(self, nombre):
         super().__init__(
             f"La categoría '{nombre}' ya existe"
         )
-# Se produce cuando una categoría está asociada a uno o más productos.
+
 class CategoriaConProductosError(Exception):
     def __init__(self, categoria_id):
         super().__init__(
@@ -28,17 +36,12 @@ class CategoriaConProductosError(Exception):
             f"tiene productos asociados"
         )
 
-# ----------------------------------------------------------------------------------
-# PATRÓN DAO – CategoriaDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Categoria.
-# El resto del sistema accede a la información mediante este DAO.
-# ----------------------------------------------------------------------------------
 class CategoriaDAO:
     def __init__(self):
         self._log = Logger()
+
     def insertar(self, categoria):
-        # Verifica que la categoría no exista previamente.
+        # Verifica que no exista otra categoría con el mismo nombre.
         if self.buscar_por_nombre(categoria.nombre):
             self._log.warning(
                 f"Categoría duplicada: {categoria.nombre}"
@@ -48,7 +51,6 @@ class CategoriaDAO:
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Los parámetros se envían mediante placeholders de PostgreSQL.
         cursor.execute(
             """
             INSERT INTO categoria
@@ -58,7 +60,8 @@ class CategoriaDAO:
             )
             VALUES
             (
-                %s, %s
+                %s,
+                %s
             )
             RETURNING id_categoria
             """,
@@ -67,13 +70,15 @@ class CategoriaDAO:
                 categoria.descripcion
             )
         )
-        # Guarda el id generado automáticamente.
-        categoria.id = cursor.fetchone()["id_categoria"]
+        fila = cursor.fetchone()
+        # Guarda el ID generado por PostgreSQL.
+        categoria.id_categoria = fila["id_categoria"]
         conn.commit()
+        cursor.close()
         conn.close()
         self._log.info(
             f"Categoría agregada: {categoria.nombre} "
-            f"(ID={categoria.id})"
+            f"(ID={categoria.id_categoria})"
         )
         return categoria
 
@@ -82,80 +87,106 @@ class CategoriaDAO:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT *
+            SELECT
+                id_categoria,
+                nombre,
+                descripcion
             FROM categoria
             WHERE nombre = %s
             """,
             (nombre,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return self._fila_a_categoria(fila) if fila else None
+        if not fila:
+            return None
+        return self._fila_a_categoria(fila)
 
     def buscar_por_id(self, categoria_id):
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT *
+            SELECT
+                id_categoria,
+                nombre,
+                descripcion
             FROM categoria
             WHERE id_categoria = %s
             """,
             (categoria_id,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return self._fila_a_categoria(fila) if fila else None
+        if not fila:
+            return None
+        return self._fila_a_categoria(fila)
+
     def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento de los registros.
         cursor.execute(
             """
-            SELECT *
+            SELECT
+                id_categoria,
+                nombre,
+                descripcion
             FROM categoria
             ORDER BY nombre
             """
         )
         filas = cursor.fetchall()
+        cursor.close()
         conn.close()
-        # Convierte cada fila de la BD en un objeto Categoria.
-        return [
-            self._fila_a_categoria(f)
-            for f in filas
-        ]
+        categorias = []
+        for fila in filas:
+            categoria = self._fila_a_categoria(fila)
+            categorias.append(categoria)
+        return categorias
+
     def actualizar(
         self,
         categoria_id,
         nombre=None,
         descripcion=None
     ):
-        c = self.buscar_por_id(categoria_id)
-        if not c:
+        categoria = self.buscar_por_id(
+            categoria_id
+        )
+
+        if not categoria:
+
             self._log.error(
-                f"Actualizar fallido: Categoría ID={categoria_id} "
-                f"no existe"
+                f"Categoría ID={categoria_id} no encontrada"
             )
+
             raise CategoriaNoEncontradaError(
                 categoria_id
             )
-        # Conserva el valor actual cuando no se envía uno nuevo.
+        # Si no se envía un dato nuevo, conserva el actual.
         nuevo_nombre = (
             nombre
             if nombre is not None
-            else c.nombre
+            else categoria.nombre
         )
+
         nueva_descripcion = (
             descripcion
             if descripcion is not None
-            else c.descripcion
+            else categoria.descripcion
         )
-        # Verifica que el nombre no pertenezca a otra categoría.
-        categoria_nombre = self.buscar_por_nombre(
+
+        # Verifica duplicados.
+        categoria_existente = self.buscar_por_nombre(
             nuevo_nombre
         )
 
-        if categoria_nombre and categoria_nombre.id != categoria_id:
+        if (
+            categoria_existente
+            and categoria_existente.id_categoria != categoria_id
+        ):
             self._log.warning(
                 f"Categoría duplicada: {nuevo_nombre}"
             )
@@ -179,30 +210,26 @@ class CategoriaDAO:
             )
         )
         conn.commit()
+        cursor.close()
         conn.close()
-        c.nombre = nuevo_nombre
-        c.descripcion = nueva_descripcion
-
+        categoria.nombre = nuevo_nombre
+        categoria.descripcion = nueva_descripcion
         self._log.info(
             f"Categoría actualizada: ID={categoria_id}"
         )
-        return c
+        return categoria
 
     def eliminar(self, categoria_id):
-        c = self.buscar_por_id(categoria_id)
-        if not c:
-            self._log.error(
-                f"Eliminar fallido: Categoría ID={categoria_id} "
-                f"no existe"
-            )
+        categoria = self.buscar_por_id(
+            categoria_id
+        )
+        if not categoria:
             raise CategoriaNoEncontradaError(
                 categoria_id
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
-
         try:
-            # No permite eliminar categorías asociadas a productos.
             cursor.execute(
                 """
                 DELETE FROM categoria
@@ -211,20 +238,21 @@ class CategoriaDAO:
                 (categoria_id,)
             )
             conn.commit()
-            conn.close()
             self._log.info(
                 f"Categoría eliminada: ID={categoria_id}"
             )
         except psycopg2.IntegrityError:
             conn.rollback()
-            conn.close()
             self._log.warning(
-                f"Eliminar fallido: Categoría ID={categoria_id} "
+                f"Categoría ID={categoria_id} "
                 f"tiene productos asociados"
             )
             raise CategoriaConProductosError(
                 categoria_id
             )
+        finally:
+            cursor.close()
+            conn.close()
 
     def total(self):
         conn = obtener_conexion()
@@ -235,14 +263,15 @@ class CategoriaDAO:
             FROM categoria
             """
         )
-        total = cursor.fetchone()["total"]
+        fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return total
+        return fila["total"]
+
     def _fila_a_categoria(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto Categoria.
-        c = Categoria(
-            fila["nombre"],
-            fila["descripcion"]
+        categoria = Categoria(
+            nombre=fila["nombre"],
+            descripcion=fila["descripcion"]
         )
-        c.id = fila["id_categoria"]
-        return c
+        categoria.id_categoria = fila["id_categoria"]
+        return categoria
