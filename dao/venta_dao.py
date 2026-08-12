@@ -8,27 +8,28 @@
 from config.logger import Logger
 from config.base_datos import obtener_conexion
 from modelos.venta import Venta
+import psycopg2
 
 class VentaNoEncontradaError(Exception):
-
     def __init__(self, venta_id):
-        super().__init__(f"Venta ID={venta_id} no encontrada")
+        super().__init__(
+            f"Venta ID={venta_id} no encontrada"
+        )
 
-# ---------------------------------------------------------------------------------
-# PATRÓN DAO – VentaDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Venta.
-#
-# Las ventas no se actualizan ni se eliminan, debido a las reglas de negocio
-# establecidas para el sistema.
-# ---------------------------------------------------------------------------------
+class VentaConDetallesError(Exception):
+    def __init__(self, venta_id):
+        super().__init__(
+            f"Venta ID={venta_id} no se puede eliminar: "
+            f"tiene detalles asociados"
+        )
+
 class VentaDAO:
     def __init__(self):
         self._log = Logger()
+        
     def insertar(self, venta):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Inserta una nueva venta utilizando parámetros seguros.
         cursor.execute(
             """
             INSERT INTO venta
@@ -49,12 +50,12 @@ class VentaDAO:
                 venta.id_cliente
             )
         )
-        # Guarda el identificador generado automáticamente.
-        venta.id = cursor.fetchone()["id_venta"]
+        fila = cursor.fetchone()
+        venta.id_venta = fila["id_venta"]
         conn.commit()
         conn.close()
         self._log.info(
-            f"Venta registrada: ID={venta.id}"
+            f"Venta agregada: ID={venta.id_venta}"
         )
         return venta
 
@@ -76,18 +77,101 @@ class VentaDAO:
     def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento por fecha de venta.
         cursor.execute(
             """
             SELECT *
             FROM venta
-            ORDER BY fecha_venta
+            ORDER BY id_venta
             """
         )
         filas = cursor.fetchall()
         conn.close()
-        # Convierte cada fila de la BD en un objeto Venta.
-        return [self._fila_a_venta(f) for f in filas]
+        return [
+            self._fila_a_venta(fila)
+            for fila in filas
+        ]
+
+    def actualizar(
+        self,
+        venta_id,
+        fecha_venta=None,
+        total_venta=None,
+        id_cliente=None
+    ):
+        venta = self.buscar_por_id(
+            venta_id
+        )
+        if not venta:
+            raise VentaNoEncontradaError(
+                venta_id
+            )
+        nueva_fecha = (
+            fecha_venta
+            if fecha_venta is not None
+            else venta.fecha_venta
+        )
+        nuevo_total = (
+            total_venta
+            if total_venta is not None
+            else venta.total_venta
+        )
+        nuevo_cliente = (
+            id_cliente
+            if id_cliente is not None
+            else venta.id_cliente
+        )
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE venta
+            SET
+                fecha_venta = %s,
+                total_venta = %s,
+                id_cliente = %s
+            WHERE id_venta = %s
+            """,
+            (
+                nueva_fecha,
+                nuevo_total,
+                nuevo_cliente,
+                venta_id
+            )
+        )
+        conn.commit()
+        conn.close()
+        venta.fecha_venta = nueva_fecha
+        venta.total_venta = nuevo_total
+        venta.id_cliente = nuevo_cliente
+        return venta
+
+    def eliminar(self, venta_id):
+        venta = self.buscar_por_id(
+            venta_id
+        )
+        if not venta:
+            raise VentaNoEncontradaError(
+                venta_id
+            )
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                DELETE FROM venta
+                WHERE id_venta = %s
+                """,
+                (venta_id,)
+            )
+            conn.commit()
+            conn.close()
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            conn.close()
+
+            raise VentaConDetallesError(
+                venta_id
+            )
 
     def total(self):
         conn = obtener_conexion()
@@ -103,11 +187,10 @@ class VentaDAO:
         return total
 
     def _fila_a_venta(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto Venta.
-        v = Venta(
+        venta = Venta(
             fila["fecha_venta"],
             fila["total_venta"],
             fila["id_cliente"]
         )
-        v.id = fila["id_venta"]
-        return v
+        venta.id_venta = fila["id_venta"]
+        return venta

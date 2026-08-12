@@ -1,7 +1,6 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
-
 class ProductoCrear(BaseModel):
     nombre_producto: str
     tipo_producto: str
@@ -15,13 +14,18 @@ class ProductoCrear(BaseModel):
     @classmethod
     def validar_precio(cls, valor):
         if valor <= 0:
-            raise ValueError("El precio debe ser mayor que cero")
+            raise ValueError(
+                "El precio debe ser mayor que cero"
+            )
         return valor
+
     @field_validator("stock")
     @classmethod
     def validar_stock(cls, valor):
         if valor < 0:
-            raise ValueError("El stock no puede ser negativo")
+            raise ValueError(
+                "El stock no puede ser negativo"
+            )
         return valor
 
 class ProductoActualizar(BaseModel):
@@ -37,15 +41,20 @@ class ProductoActualizar(BaseModel):
     @classmethod
     def validar_precio(cls, valor):
         if valor is not None and valor <= 0:
-            raise ValueError("El precio debe ser mayor que cero")
+            raise ValueError(
+                "El precio debe ser mayor que cero"
+            )
         return valor
 
     @field_validator("stock")
     @classmethod
     def validar_stock(cls, valor):
         if valor is not None and valor < 0:
-            raise ValueError("El stock no puede ser negativo")
+            raise ValueError(
+                "El stock no puede ser negativo"
+            )
         return valor
+
 class ProductoRespuesta(BaseModel):
     id_producto: int
     nombre_producto: str

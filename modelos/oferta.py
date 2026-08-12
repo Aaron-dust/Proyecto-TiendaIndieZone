@@ -6,51 +6,46 @@
 
 class Oferta:
 
-    def __init__(self, nombre_oferta, descuento, fecha_inicio, fecha_fin, activa):
-
-        self.id = None
-        self.nombre_oferta = nombre_oferta
-        self.descuento = descuento
+    def __init__(
+        self,
+        nombre,
+        porcentaje_descuento,
+        fecha_inicio,
+        fecha_fin
+    ):
+        self.id_oferta = None
+        self.nombre = nombre
+        self.porcentaje_descuento = porcentaje_descuento
         self.fecha_inicio = fecha_inicio
         self.fecha_fin = fecha_fin
-        self.activa = activa
 
     def __str__(self):
-
         return (
-
-            f"[{self.id}] {self.nombre_oferta} | "
-            f"{self.descuento}% | "
-            f"{self.fecha_inicio} - {self.fecha_fin}"
-
+            f"[{self.id_oferta}] "
+            f"{self.nombre} | "
+            f"Descuento: {self.porcentaje_descuento}% | "
+            f"Inicio: {self.fecha_inicio} | "
+            f"Fin: {self.fecha_fin}"
         )
 
     def to_dict(self):
-
         return {
-
-            "id": self.id,
-            "nombre_oferta": self.nombre_oferta,
-            "descuento": self.descuento,
+            "id_oferta": self.id_oferta,
+            "nombre": self.nombre,
+            "porcentaje_descuento": self.porcentaje_descuento,
             "fecha_inicio": self.fecha_inicio,
-            "fecha_fin": self.fecha_fin,
-            "activa": self.activa
-
+            "fecha_fin": self.fecha_fin
         }
 
     @classmethod
     def from_dict(cls, datos):
-
         oferta = cls(
-
-            datos["nombre_oferta"],
-            datos["descuento"],
+            datos["nombre"],
+            datos["porcentaje_descuento"],
             datos["fecha_inicio"],
-            datos["fecha_fin"],
-            datos["activa"]
-
+            datos["fecha_fin"]
         )
 
-        oferta.id = datos["id"]
+        oferta.id_oferta = datos.get("id_oferta")
 
         return oferta

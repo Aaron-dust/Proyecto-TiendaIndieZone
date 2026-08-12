@@ -1,21 +1,19 @@
-from pydantic import BaseModel, field_validator
-
+from pydantic import BaseModel
+from typing import Optional
+from datetime import date
 
 class VentaCrear(BaseModel):
-    fecha_venta: str
+    fecha_venta: date
     total_venta: float
     id_cliente: int
 
-    @field_validator("total_venta")
-    @classmethod
-    def validar_total(cls, valor):
-        if valor <= 0:
-            raise ValueError("El total de la venta debe ser mayor que cero")
-        return valor
-
+class VentaActualizar(BaseModel):
+    fecha_venta: Optional[date] = None
+    total_venta: Optional[float] = None
+    id_cliente: Optional[int] = None
 
 class VentaRespuesta(BaseModel):
     id_venta: int
-    fecha_venta: str
+    fecha_venta: date
     total_venta: float
     id_cliente: int

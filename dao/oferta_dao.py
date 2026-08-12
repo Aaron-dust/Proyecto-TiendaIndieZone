@@ -4,41 +4,38 @@
 # Permiten controlar errores específicos relacionados con la gestión
 # de ofertas del sistema.
 # ----------------------------------------------------------------------------------
+
 from config.logger import Logger
 from config.base_datos import obtener_conexion
-import psycopg2
 from modelos.oferta import Oferta
+import psycopg2
 
 class OfertaNoEncontradaError(Exception):
     def __init__(self, oferta_id):
         super().__init__(
             f"Oferta ID={oferta_id} no encontrada"
         )
+
 class OfertaDuplicadaError(Exception):
 
     def __init__(self, nombre):
         super().__init__(
             f"La oferta '{nombre}' ya existe"
         )
-# Se produce cuando una oferta está asociada a uno o más productos.
-class OfertaConProductosError(Exception):
 
+class OfertaConProductosError(Exception):
     def __init__(self, oferta_id):
         super().__init__(
             f"Oferta ID={oferta_id} no se puede eliminar: "
             f"tiene productos asociados"
         )
-# ----------------------------------------------------------------------------------
-# PATRÓN DAO – OfertaDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Oferta.
-# ----------------------------------------------------------------------------------
 
 class OfertaDAO:
     def __init__(self):
         self._log = Logger()
     def insertar(self, oferta):
-        # Verifica que la oferta no exista previamente.
+
+        # Verifica si ya existe una oferta con el mismo nombre
         if self.buscar_por_nombre(oferta.nombre):
             self._log.warning(
                 f"Oferta duplicada: {oferta.nombre}"
@@ -48,7 +45,6 @@ class OfertaDAO:
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Inserta una nueva oferta utilizando parámetros seguros.
         cursor.execute(
             """
             INSERT INTO oferta
@@ -71,18 +67,21 @@ class OfertaDAO:
                 oferta.fecha_fin
             )
         )
-        # Guarda el identificador generado automáticamente.
-        oferta.id = cursor.fetchone()["id_oferta"]
+        fila = cursor.fetchone()
+        oferta.id_oferta = fila["id_oferta"]
         conn.commit()
+        cursor.close()
         conn.close()
         self._log.info(
             f"Oferta agregada: {oferta.nombre} "
-            f"(ID={oferta.id})"
+            f"(ID={oferta.id_oferta})"
         )
         return oferta
+
     def buscar_por_nombre(self, nombre):
         conn = obtener_conexion()
         cursor = conn.cursor()
+
         cursor.execute(
             """
             SELECT *
@@ -92,8 +91,10 @@ class OfertaDAO:
             (nombre,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
         return self._fila_a_oferta(fila) if fila else None
+
     def buscar_por_id(self, oferta_id):
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -106,12 +107,13 @@ class OfertaDAO:
             (oferta_id,)
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
         return self._fila_a_oferta(fila) if fila else None
+
     def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento de los registros.
         cursor.execute(
             """
             SELECT *
@@ -120,12 +122,13 @@ class OfertaDAO:
             """
         )
         filas = cursor.fetchall()
+        cursor.close()
         conn.close()
-        # Convierte cada fila de la BD en un objeto Oferta.
         return [
-            self._fila_a_oferta(f)
-            for f in filas
+            self._fila_a_oferta(fila)
+            for fila in filas
         ]
+
     def actualizar(
         self,
         oferta_id,
@@ -134,44 +137,38 @@ class OfertaDAO:
         fecha_inicio=None,
         fecha_fin=None
     ):
-        o = self.buscar_por_id(oferta_id)
-        if not o:
-            self._log.error(
-                f"Actualizar fallido: Oferta ID={oferta_id} "
-                f"no existe"
-            )
-            raise OfertaNoEncontradaError(
-                oferta_id
-            )
-        # Conserva el valor actual cuando no se envía uno nuevo.
+        oferta = self.buscar_por_id(oferta_id)
+        if not oferta:
+            raise OfertaNoEncontradaError(oferta_id)
         nuevo_nombre = (
             nombre
             if nombre is not None
-            else o.nombre
+            else oferta.nombre
         )
         nuevo_porcentaje = (
             porcentaje_descuento
             if porcentaje_descuento is not None
-            else o.porcentaje_descuento
+            else oferta.porcentaje_descuento
         )
         nueva_fecha_inicio = (
             fecha_inicio
             if fecha_inicio is not None
-            else o.fecha_inicio
+            else oferta.fecha_inicio
         )
         nueva_fecha_fin = (
             fecha_fin
             if fecha_fin is not None
-            else o.fecha_fin
+            else oferta.fecha_fin
         )
-        # Verifica que el nombre no pertenezca a otra oferta.
-        oferta_nombre = self.buscar_por_nombre(
+
+        # Comprueba que el nombre no pertenezca a otra oferta
+        otra_oferta = self.buscar_por_nombre(
             nuevo_nombre
         )
-        if oferta_nombre and oferta_nombre.id != oferta_id:
-            self._log.warning(
-                f"Oferta duplicada: {nuevo_nombre}"
-            )
+        if (
+            otra_oferta
+            and otra_oferta.id_oferta != oferta_id
+        ):
             raise OfertaDuplicadaError(
                 nuevo_nombre
             )
@@ -196,30 +193,25 @@ class OfertaDAO:
             )
         )
         conn.commit()
+        cursor.close()
         conn.close()
-        o.nombre = nuevo_nombre
-        o.porcentaje_descuento = nuevo_porcentaje
-        o.fecha_inicio = nueva_fecha_inicio
-        o.fecha_fin = nueva_fecha_fin
+        oferta.nombre = nuevo_nombre
+        oferta.porcentaje_descuento = nuevo_porcentaje
+        oferta.fecha_inicio = nueva_fecha_inicio
+        oferta.fecha_fin = nueva_fecha_fin
+
         self._log.info(
             f"Oferta actualizada: ID={oferta_id}"
         )
-        return o
+        return oferta
 
     def eliminar(self, oferta_id):
-        o = self.buscar_por_id(oferta_id)
-        if not o:
-            self._log.error(
-                f"Eliminar fallido: Oferta ID={oferta_id} "
-                f"no existe"
-            )
-            raise OfertaNoEncontradaError(
-                oferta_id
-            )
+        oferta = self.buscar_por_id(oferta_id)
+        if not oferta:
+            raise OfertaNoEncontradaError(oferta_id)
         conn = obtener_conexion()
         cursor = conn.cursor()
         try:
-            # No permite eliminar ofertas asociadas a productos.
             cursor.execute(
                 """
                 DELETE FROM oferta
@@ -228,24 +220,23 @@ class OfertaDAO:
                 (oferta_id,)
             )
             conn.commit()
-            conn.close()
             self._log.info(
                 f"Oferta eliminada: ID={oferta_id}"
             )
         except psycopg2.IntegrityError:
             conn.rollback()
-            conn.close()
-            self._log.warning(
-                f"Eliminar fallido: Oferta ID={oferta_id} "
-                f"tiene productos asociados"
-            )
+
             raise OfertaConProductosError(
                 oferta_id
             )
+        finally:
+            cursor.close()
+            conn.close()
 
     def total(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
+
         cursor.execute(
             """
             SELECT COUNT(*) AS total
@@ -253,15 +244,16 @@ class OfertaDAO:
             """
         )
         total = cursor.fetchone()["total"]
+        cursor.close()
         conn.close()
         return total
+
     def _fila_a_oferta(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto Oferta.
-        o = Oferta(
+        oferta = Oferta(
             fila["nombre"],
             fila["porcentaje_descuento"],
             fila["fecha_inicio"],
             fila["fecha_fin"]
         )
-        o.id = fila["id_oferta"]
-        return o
+        oferta.id_oferta = fila["id_oferta"]
+        return oferta

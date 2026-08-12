@@ -17,59 +17,54 @@ router = APIRouter(
 )
 dao = OfertaDAO()
 
-@router.get("/", response_model=list[OfertaRespuesta])
+@router.get("/",response_model=list[OfertaRespuesta])
 def listar_ofertas():
-    return [o.to_dict() for o in dao.obtener_todos()]
+    return [
+        oferta.to_dict()
+        for oferta in dao.obtener_todos()
+    ]
 
-@router.get("/{oferta_id}", response_model=OfertaRespuesta)
+@router.get("/{oferta_id}",response_model=OfertaRespuesta)
 def obtener_oferta(oferta_id: int):
-    o = dao.buscar_por_id(oferta_id)
-    if not o:
+    oferta = dao.buscar_por_id(oferta_id)
+    if not oferta:
         raise HTTPException(
             status_code=404,
             detail=f"Oferta ID={oferta_id} no encontrada"
         )
-    return o.to_dict()
-@router.post(
-    "/",
-    response_model=OfertaRespuesta,
-    status_code=201
-)
-def crear_oferta(datos: OfertaCrear):
+    return oferta.to_dict()
 
+@router.post("/", response_model=OfertaRespuesta,status_code=201)
+def crear_oferta(datos: OfertaCrear):
     try:
-        o = Oferta(
+        oferta = Oferta(
             datos.nombre,
             datos.porcentaje_descuento,
             datos.fecha_inicio,
             datos.fecha_fin
         )
-        o = dao.insertar(o)
-        return o.to_dict()
+        oferta = dao.insertar(oferta)
+        return oferta.to_dict()
     except OfertaDuplicadaError as ex:
         raise HTTPException(
             status_code=400,
             detail=str(ex)
         )
 
-@router.put(
-    "/{oferta_id}",
-    response_model=OfertaRespuesta
-)
+@router.put("/{oferta_id}", response_model=OfertaRespuesta)
 def actualizar_oferta(
     oferta_id: int,
     datos: OfertaActualizar
 ):
-
     try:
-        o = dao.actualizar(
+        oferta = dao.actualizar(
             oferta_id,
             datos.nombre,
             datos.porcentaje_descuento,
             datos.fecha_inicio,
             datos.fecha_fin
         )
-        return o.to_dict()
+        return oferta.to_dict()
     except OfertaNoEncontradaError as ex:
         raise HTTPException(
             status_code=404,
