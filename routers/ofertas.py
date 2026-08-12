@@ -1,11 +1,16 @@
+# routers/ofertas.py
+
 from fastapi import APIRouter, HTTPException
+
+from modelos.oferta import Oferta
+
 from dao.oferta_dao import (
     OfertaDAO,
     OfertaNoEncontradaError,
     OfertaDuplicadaError,
     OfertaConProductosError
 )
-from modelos.oferta import Oferta
+
 from schemas.oferta_schema import (
     OfertaCrear,
     OfertaActualizar,
@@ -17,24 +22,38 @@ router = APIRouter(
 )
 dao = OfertaDAO()
 
-@router.get("/",response_model=list[OfertaRespuesta])
+# Lista todas las ofertas.
+@router.get(
+    "/",
+    response_model=list[OfertaRespuesta]
+)
 def listar_ofertas():
+    ofertas = dao.obtener_todos()
     return [
         oferta.to_dict()
-        for oferta in dao.obtener_todos()
+        for oferta in ofertas
     ]
 
-@router.get("/{oferta_id}",response_model=OfertaRespuesta)
+# Obtiene una oferta por ID.
+@router.get(
+    "/{oferta_id}",
+    response_model=OfertaRespuesta
+)
 def obtener_oferta(oferta_id: int):
     oferta = dao.buscar_por_id(oferta_id)
     if not oferta:
         raise HTTPException(
             status_code=404,
-            detail=f"Oferta ID={oferta_id} no encontrada"
+            detail="Oferta no encontrada"
         )
     return oferta.to_dict()
 
-@router.post("/", response_model=OfertaRespuesta,status_code=201)
+# Crea una nueva oferta.
+@router.post(
+    "/",
+    response_model=OfertaRespuesta,
+    status_code=201
+)
 def crear_oferta(datos: OfertaCrear):
     try:
         oferta = Oferta(
@@ -45,13 +64,17 @@ def crear_oferta(datos: OfertaCrear):
         )
         oferta = dao.insertar(oferta)
         return oferta.to_dict()
-    except OfertaDuplicadaError as ex:
+    except OfertaDuplicadaError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
 
-@router.put("/{oferta_id}", response_model=OfertaRespuesta)
+# Actualiza una oferta.
+@router.put(
+    "/{oferta_id}",
+    response_model=OfertaRespuesta
+)
 def actualizar_oferta(
     oferta_id: int,
     datos: OfertaActualizar
@@ -65,31 +88,35 @@ def actualizar_oferta(
             datos.fecha_fin
         )
         return oferta.to_dict()
-    except OfertaNoEncontradaError as ex:
+    except OfertaNoEncontradaError as error:
         raise HTTPException(
             status_code=404,
-            detail=str(ex)
+            detail=str(error)
         )
-    except OfertaDuplicadaError as ex:
+    except OfertaDuplicadaError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
 
-@router.delete("/{oferta_id}")
+# Elimina una oferta.
+@router.delete(
+    "/{oferta_id}"
+)
 def eliminar_oferta(oferta_id: int):
     try:
         dao.eliminar(oferta_id)
         return {
-            "mensaje": f"Oferta ID={oferta_id} eliminada"
+            "mensaje":
+                "Oferta eliminada correctamente"
         }
-    except OfertaNoEncontradaError as ex:
+    except OfertaNoEncontradaError as error:
         raise HTTPException(
             status_code=404,
-            detail=str(ex)
+            detail=str(error)
         )
-    except OfertaConProductosError as ex:
+    except OfertaConProductosError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
