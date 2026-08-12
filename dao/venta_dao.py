@@ -1,190 +1,108 @@
-# ----------------------------------------------------------------------------------
-# EXCEPCIONES PERSONALIZADAS
-#
-# Permiten controlar errores específicos relacionados con la gestión
-# de ventas del sistema.
-# ----------------------------------------------------------------------------------
+# dao/venta_dao.py
 
-from config.logger import Logger
 from config.base_datos import obtener_conexion
 from modelos.venta import Venta
-import psycopg2
 
 class VentaNoEncontradaError(Exception):
-    def __init__(self, venta_id):
-        super().__init__(
-            f"Venta ID={venta_id} no encontrada"
-        )
-
-class VentaConDetallesError(Exception):
-    def __init__(self, venta_id):
-        super().__init__(
-            f"Venta ID={venta_id} no se puede eliminar: "
-            f"tiene detalles asociados"
-        )
+    pass
 
 class VentaDAO:
-    def __init__(self):
-        self._log = Logger()
-        
     def insertar(self, venta):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            """
+
+        cursor.execute("""
             INSERT INTO venta
             (
                 fecha_venta,
                 total_venta,
                 id_cliente
             )
-            VALUES
-            (
-                %s, %s, %s
-            )
+            VALUES (%s, %s, %s)
             RETURNING id_venta
-            """,
-            (
-                venta.fecha_venta,
-                venta.total_venta,
-                venta.id_cliente
-            )
+        """, (
+            venta.fecha_venta,
+            venta.total_venta,
+            venta.id_cliente
+        ))
+        venta.id = (
+            cursor.fetchone()["id_venta"]
         )
-        fila = cursor.fetchone()
-        venta.id_venta = fila["id_venta"]
         conn.commit()
+        cursor.close()
         conn.close()
-        self._log.info(
-            f"Venta agregada: ID={venta.id_venta}"
-        )
         return venta
 
     def buscar_por_id(self, venta_id):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT *
             FROM venta
             WHERE id_venta = %s
-            """,
-            (venta_id,)
-        )
+        """, (venta_id,))
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return self._fila_a_venta(fila) if fila else None
+        if not fila:
+            return None
+        return self._fila_a_venta(fila)
 
-    def obtener_todos(self):
+    def buscar_por_cliente(self, cliente_id):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT *
             FROM venta
-            ORDER BY id_venta
-            """
-        )
+            WHERE id_cliente = %s
+            ORDER BY fecha_venta DESC
+        """, (cliente_id,))
         filas = cursor.fetchall()
+        cursor.close()
         conn.close()
         return [
             self._fila_a_venta(fila)
             for fila in filas
         ]
 
-    def actualizar(
-        self,
-        venta_id,
-        fecha_venta=None,
-        total_venta=None,
-        id_cliente=None
-    ):
-        venta = self.buscar_por_id(
-            venta_id
-        )
-        if not venta:
-            raise VentaNoEncontradaError(
-                venta_id
-            )
-        nueva_fecha = (
-            fecha_venta
-            if fecha_venta is not None
-            else venta.fecha_venta
-        )
-        nuevo_total = (
-            total_venta
-            if total_venta is not None
-            else venta.total_venta
-        )
-        nuevo_cliente = (
-            id_cliente
-            if id_cliente is not None
-            else venta.id_cliente
-        )
+    def resumen_por_cliente(self, cliente_id):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE venta
-            SET
-                fecha_venta = %s,
-                total_venta = %s,
-                id_cliente = %s
-            WHERE id_venta = %s
-            """,
-            (
-                nueva_fecha,
-                nuevo_total,
-                nuevo_cliente,
-                venta_id
-            )
-        )
-        conn.commit()
-        conn.close()
-        venta.fecha_venta = nueva_fecha
-        venta.total_venta = nuevo_total
-        venta.id_cliente = nuevo_cliente
-        return venta
-
-    def eliminar(self, venta_id):
-        venta = self.buscar_por_id(
-            venta_id
-        )
-        if not venta:
-            raise VentaNoEncontradaError(
-                venta_id
-            )
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """
-                DELETE FROM venta
-                WHERE id_venta = %s
-                """,
-                (venta_id,)
-            )
-            conn.commit()
-            conn.close()
-        except psycopg2.IntegrityError:
-            conn.rollback()
-            conn.close()
-
-            raise VentaConDetallesError(
-                venta_id
-            )
-
-    def total(self):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS cantidad_ventas,
+                COALESCE(
+                    SUM(total_venta),
+                    0
+                ) AS total_comprado
             FROM venta
-            """
-        )
-        total = cursor.fetchone()["total"]
+            WHERE id_cliente = %s
+        """, (cliente_id,))
+        fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return total
+        return {
+            "cantidad_ventas":
+                fila["cantidad_ventas"],
+            "total_comprado":
+                float(fila["total_comprado"])
+        }
+
+    def obtener_todos(self):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT *
+            FROM venta
+            ORDER BY fecha_venta DESC
+        """)
+        filas = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [
+            self._fila_a_venta(fila)
+            for fila in filas
+        ]
 
     def _fila_a_venta(self, fila):
         venta = Venta(
@@ -192,5 +110,5 @@ class VentaDAO:
             fila["total_venta"],
             fila["id_cliente"]
         )
-        venta.id_venta = fila["id_venta"]
+        venta.id = fila["id_venta"]
         return venta
