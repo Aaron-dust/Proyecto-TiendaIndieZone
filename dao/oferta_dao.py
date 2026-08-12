@@ -1,47 +1,83 @@
-# ----------------------------------------------------------------------------------
-# EXCEPCIONES PERSONALIZADAS
-#
-# Permiten controlar errores específicos relacionados con la gestión
-# de ofertas del sistema.
-# ----------------------------------------------------------------------------------
+# dao/oferta_dao.py
 
-from config.logger import Logger
-from config.base_datos import obtener_conexion
-from modelos.oferta import Oferta
 import psycopg2
 
+from config.base_datos import obtener_conexion
+from modelos.oferta import Oferta
+
 class OfertaNoEncontradaError(Exception):
-    def __init__(self, oferta_id):
-        super().__init__(
-            f"Oferta ID={oferta_id} no encontrada"
-        )
+    pass
 
 class OfertaDuplicadaError(Exception):
-
-    def __init__(self, nombre):
-        super().__init__(
-            f"La oferta '{nombre}' ya existe"
-        )
+    pass
 
 class OfertaConProductosError(Exception):
-    def __init__(self, oferta_id):
-        super().__init__(
-            f"Oferta ID={oferta_id} no se puede eliminar: "
-            f"tiene productos asociados"
-        )
+    pass
 
 class OfertaDAO:
-    def __init__(self):
-        self._log = Logger()
-    def insertar(self, oferta):
+    # Busca una oferta por su ID.
+    def buscar_por_id(self, oferta_id):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
 
-        # Verifica si ya existe una oferta con el mismo nombre
+        cursor.execute(
+            """
+            SELECT *
+            FROM oferta
+            WHERE id_oferta = %s
+            """,
+            (oferta_id,)
+        )
+        fila = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if not fila:
+            return None
+        return self._fila_a_oferta(fila)
+
+    # Busca una oferta por nombre.
+    def buscar_por_nombre(self, nombre):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM oferta
+            WHERE LOWER(nombre) = LOWER(%s)
+            """,
+            (nombre,)
+        )
+        fila = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if not fila:
+            return None
+        return self._fila_a_oferta(fila)
+
+    # Devuelve todas las ofertas.
+    def obtener_todos(self):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM oferta
+            ORDER BY id_oferta
+            """
+        )
+        filas = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [
+            self._fila_a_oferta(fila)
+            for fila in filas
+        ]
+
+    # Inserta una nueva oferta.
+    def insertar(self, oferta):
         if self.buscar_por_nombre(oferta.nombre):
-            self._log.warning(
-                f"Oferta duplicada: {oferta.nombre}"
-            )
             raise OfertaDuplicadaError(
-                oferta.nombre
+                "La oferta ya existe"
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -54,10 +90,7 @@ class OfertaDAO:
                 fecha_inicio,
                 fecha_fin
             )
-            VALUES
-            (
-                %s, %s, %s, %s
-            )
+            VALUES (%s, %s, %s, %s)
             RETURNING id_oferta
             """,
             (
@@ -67,68 +100,13 @@ class OfertaDAO:
                 oferta.fecha_fin
             )
         )
-        fila = cursor.fetchone()
-        oferta.id_oferta = fila["id_oferta"]
+        oferta.id = cursor.fetchone()["id_oferta"]
         conn.commit()
         cursor.close()
         conn.close()
-        self._log.info(
-            f"Oferta agregada: {oferta.nombre} "
-            f"(ID={oferta.id_oferta})"
-        )
         return oferta
 
-    def buscar_por_nombre(self, nombre):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT *
-            FROM oferta
-            WHERE nombre = %s
-            """,
-            (nombre,)
-        )
-        fila = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return self._fila_a_oferta(fila) if fila else None
-
-    def buscar_por_id(self, oferta_id):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT *
-            FROM oferta
-            WHERE id_oferta = %s
-            """,
-            (oferta_id,)
-        )
-        fila = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return self._fila_a_oferta(fila) if fila else None
-
-    def obtener_todos(self):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT *
-            FROM oferta
-            ORDER BY nombre
-            """
-        )
-        filas = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return [
-            self._fila_a_oferta(fila)
-            for fila in filas
-        ]
-
+    # Actualiza una oferta.
     def actualizar(
         self,
         oferta_id,
@@ -139,13 +117,15 @@ class OfertaDAO:
     ):
         oferta = self.buscar_por_id(oferta_id)
         if not oferta:
-            raise OfertaNoEncontradaError(oferta_id)
+            raise OfertaNoEncontradaError(
+                "Oferta no encontrada"
+            )
         nuevo_nombre = (
             nombre
             if nombre is not None
             else oferta.nombre
         )
-        nuevo_porcentaje = (
+        nuevo_descuento = (
             porcentaje_descuento
             if porcentaje_descuento is not None
             else oferta.porcentaje_descuento
@@ -160,17 +140,15 @@ class OfertaDAO:
             if fecha_fin is not None
             else oferta.fecha_fin
         )
-
-        # Comprueba que el nombre no pertenezca a otra oferta
         otra_oferta = self.buscar_por_nombre(
             nuevo_nombre
         )
         if (
             otra_oferta
-            and otra_oferta.id_oferta != oferta_id
+            and otra_oferta.id != oferta_id
         ):
             raise OfertaDuplicadaError(
-                nuevo_nombre
+                "Ya existe otra oferta con ese nombre"
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -186,7 +164,7 @@ class OfertaDAO:
             """,
             (
                 nuevo_nombre,
-                nuevo_porcentaje,
+                nuevo_descuento,
                 nueva_fecha_inicio,
                 nueva_fecha_fin,
                 oferta_id
@@ -195,20 +173,14 @@ class OfertaDAO:
         conn.commit()
         cursor.close()
         conn.close()
-        oferta.nombre = nuevo_nombre
-        oferta.porcentaje_descuento = nuevo_porcentaje
-        oferta.fecha_inicio = nueva_fecha_inicio
-        oferta.fecha_fin = nueva_fecha_fin
+        return self.buscar_por_id(oferta_id)
 
-        self._log.info(
-            f"Oferta actualizada: ID={oferta_id}"
-        )
-        return oferta
-
+    # Elimina una oferta si no está siendo usada.
     def eliminar(self, oferta_id):
-        oferta = self.buscar_por_id(oferta_id)
-        if not oferta:
-            raise OfertaNoEncontradaError(oferta_id)
+        if not self.buscar_por_id(oferta_id):
+            raise OfertaNoEncontradaError(
+                "Oferta no encontrada"
+            )
         conn = obtener_conexion()
         cursor = conn.cursor()
         try:
@@ -220,34 +192,16 @@ class OfertaDAO:
                 (oferta_id,)
             )
             conn.commit()
-            self._log.info(
-                f"Oferta eliminada: ID={oferta_id}"
-            )
         except psycopg2.IntegrityError:
             conn.rollback()
-
             raise OfertaConProductosError(
-                oferta_id
+                "La oferta tiene productos asociados"
             )
         finally:
             cursor.close()
             conn.close()
 
-    def total(self):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM oferta
-            """
-        )
-        total = cursor.fetchone()["total"]
-        cursor.close()
-        conn.close()
-        return total
-
+    # Convierte una fila de PostgreSQL en un objeto Oferta.
     def _fila_a_oferta(self, fila):
         oferta = Oferta(
             fila["nombre"],
@@ -255,5 +209,5 @@ class OfertaDAO:
             fila["fecha_inicio"],
             fila["fecha_fin"]
         )
-        oferta.id_oferta = fila["id_oferta"]
+        oferta.id = fila["id_oferta"]
         return oferta
