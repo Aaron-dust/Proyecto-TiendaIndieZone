@@ -8,6 +8,7 @@ from dao.cliente_dao import (
 )
 
 from modelos.cliente import Cliente
+
 from schemas.cliente_schema import (
     ClienteCrear,
     ClienteActualizar,
@@ -17,32 +18,46 @@ router = APIRouter(
     prefix="/clientes",
     tags=["Clientes"]
 )
-
 dao = ClienteDAO()
 
-@router.get("/", response_model=list[ClienteRespuesta])
-def listar_clientes():
-    return [c.to_dict() for c in dao.obtener_todos()]
+# Lista clientes y también permite realizar búsquedas.
+@router.get(
+    "/",
+    response_model=list[ClienteRespuesta]
+)
+def listar_clientes(
+    dni: str | None = None,
+    nombre: str | None = None,
+    correo: str | None = None
+):
+    
+    # Si se escribe algún dato, se realiza una búsqueda.
+    if dni or nombre or correo:
 
-
-@router.get("/{cliente_id}", response_model=ClienteRespuesta)
-def obtener_cliente(cliente_id: int):
-    c = dao.buscar_por_id(cliente_id)
-    if not c:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Cliente ID={cliente_id} no encontrado"
+        clientes = dao.buscar(
+            dni=dni,
+            nombre=nombre,
+            correo=correo
         )
-    return c.to_dict()
+
+    # Si no se escribe nada, muestra todos.
+    else:
+        clientes = dao.obtener_todos()
+    return [
+        cliente.to_dict()
+        for cliente in clientes
+    ]
 
 @router.post(
     "/",
     response_model=ClienteRespuesta,
     status_code=201
 )
-def crear_cliente(datos: ClienteCrear):
+def crear_cliente(
+    datos: ClienteCrear
+):
     try:
-        c = Cliente(
+        cliente = Cliente(
             datos.nombre,
             datos.apellido,
             datos.dni,
@@ -50,13 +65,33 @@ def crear_cliente(datos: ClienteCrear):
             datos.telefono,
             datos.fecha_registro
         )
-        c = dao.insertar(c)
-        return c.to_dict()
-    except DNIDuplicadoError as ex:
+        cliente = dao.insertar(
+            cliente
+        )
+        return cliente.to_dict()
+    except DNIDuplicadoError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
+
+@router.get(
+    "/{cliente_id}",
+    response_model=ClienteRespuesta
+)
+def obtener_cliente(
+    cliente_id: int
+):
+    cliente = dao.buscar_por_id(
+        cliente_id
+    )
+    if not cliente:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Cliente no encontrado"
+        )
+    return cliente.to_dict()
 
 @router.put(
     "/{cliente_id}",
@@ -67,7 +102,7 @@ def actualizar_cliente(
     datos: ClienteActualizar
 ):
     try:
-        c = dao.actualizar(
+        cliente = dao.actualizar(
             cliente_id,
             datos.nombre,
             datos.apellido,
@@ -76,32 +111,40 @@ def actualizar_cliente(
             datos.telefono,
             datos.fecha_registro
         )
-        return c.to_dict()
-    except ClienteNoEncontradoError as ex:
+
+        return cliente.to_dict()
+    except ClienteNoEncontradoError as error:
         raise HTTPException(
             status_code=404,
-            detail=str(ex)
+            detail=str(error)
         )
-    except DNIDuplicadoError as ex:
+    except DNIDuplicadoError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
 
-@router.delete("/{cliente_id}")
-def eliminar_cliente(cliente_id: int):
+@router.delete(
+    "/{cliente_id}"
+)
+def eliminar_cliente(
+    cliente_id: int
+):
     try:
-        dao.eliminar(cliente_id)
+        dao.eliminar(
+            cliente_id
+        )
         return {
-            "mensaje": f"Cliente ID={cliente_id} eliminado"
+            "mensaje":
+                "Cliente eliminado correctamente"
         }
-    except ClienteNoEncontradoError as ex:
+    except ClienteNoEncontradoError as error:
         raise HTTPException(
             status_code=404,
-            detail=str(ex)
+            detail=str(error)
         )
-    except ClienteConVentasError as ex:
+    except ClienteConVentasError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(ex)
+            detail=str(error)
         )
