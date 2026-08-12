@@ -1,82 +1,41 @@
-# ----------------------------------------------------------------------------------
-# EXCEPCIONES PERSONALIZADAS
-#
-# Permiten controlar errores específicos relacionados con la gestión
-# de los detalles de las ventas del sistema.
-# ----------------------------------------------------------------------------------
-from config.logger import Logger
+import psycopg2
+
 from config.base_datos import obtener_conexion
 from modelos.detalle_venta import DetalleVenta
 
 class DetalleVentaNoEncontradoError(Exception):
-    def __init__(self, id_venta, id_producto):
-        super().__init__(
-            f"Detalle de venta ({id_venta}, {id_producto}) no encontrado"
-        )
+    pass
 
 class DetalleVentaDuplicadoError(Exception):
-    def __init__(self, id_venta, id_producto):
-        super().__init__(
-            f"El producto {id_producto} ya existe en la venta {id_venta}"
-        )
-# ----------------------------------------------------------------------------------
-# PATRÓN DAO – DetalleVentaDAO
-#
-# Encapsula todas las operaciones relacionadas con la tabla Detalle_Venta.
-#
-# Los detalles de una venta no se actualizan ni se eliminan, debido a que
-# forman parte del registro histórico de la venta.
-# ----------------------------------------------------------------------------------
+    pass
 
 class DetalleVentaDAO:
-    def __init__(self):
-        self._log = Logger()
-    def insertar(self, detalle):
-        # Verifica que el producto no exista dentro de la misma venta.
-        if self.buscar(detalle.id_venta, detalle.id_producto):
-            self._log.warning(
-                f"Detalle duplicado: Venta={detalle.id_venta} "
-                f"Producto={detalle.id_producto}"
-            )
-            raise DetalleVentaDuplicadoError(
-                detalle.id_venta,
-                detalle.id_producto
-            )
+
+    # Lista todos los detalles de venta.
+    def obtener_todos(self):
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # Inserta un nuevo detalle de venta.
         cursor.execute(
             """
-            INSERT INTO detalle_venta
-            (
-                id_venta,
-                id_producto,
-                cantidad,
-                precio_unitario,
-                subtotal
-            )
-            VALUES
-            (
-                %s, %s, %s, %s, %s
-            )
-            """,
-            (
-                detalle.id_venta,
-                detalle.id_producto,
-                detalle.cantidad,
-                detalle.precio_unitario,
-                detalle.subtotal
-            )
+            SELECT *
+            FROM detalle_venta
+            ORDER BY id_venta, id_producto
+            """
         )
-        conn.commit()
+        filas = cursor.fetchall()
+        cursor.close()
         conn.close()
-        self._log.info(
-            f"Detalle agregado: Venta={detalle.id_venta} "
-            f"Producto={detalle.id_producto}"
-        )
-        return detalle
+        return [
+            self._fila_a_detalle(fila)
+            for fila in filas
+        ]
 
-    def buscar(self, id_venta, id_producto):
+    # Busca un detalle usando venta y producto.
+    def buscar_por_id(
+        self,
+        id_venta,
+        id_producto
+    ):
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
@@ -92,44 +51,101 @@ class DetalleVentaDAO:
             )
         )
         fila = cursor.fetchone()
+        cursor.close()
         conn.close()
-        return self._fila_a_detalle(fila) if fila else None
+        if not fila:
+            return None
+        return self._fila_a_detalle(
+            fila
+        )
 
-    def obtener_todos(self):
+    # Inserta un detalle de venta.
+    def insertar(
+        self,
+        detalle
+    ):
+        if self.buscar_por_id(
+            detalle.id_venta,
+            detalle.id_producto
+        ):
+            raise DetalleVentaDuplicadoError(
+                "Ese producto ya está registrado "
+                "en esta venta"
+            )
         conn = obtener_conexion()
         cursor = conn.cursor()
-        # PostgreSQL realiza el ordenamiento por id de venta.
-        cursor.execute(
-            """
-            SELECT *
-            FROM detalle_venta
-            ORDER BY id_venta
-            """
-        )
-        filas = cursor.fetchall()
-        conn.close()
-        # Convierte cada fila de la BD en un objeto DetalleVenta.
-        return [self._fila_a_detalle(f) for f in filas]
+        try:
+            cursor.execute(
+                """
+                INSERT INTO detalle_venta
+                (
+                    id_venta,
+                    id_producto,
+                    cantidad,
+                    precio_unitario,
+                    subtotal
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s
+                )
+                """,
+                (
+                    detalle.id_venta,
+                    detalle.id_producto,
+                    detalle.cantidad,
+                    detalle.precio_unitario,
+                    detalle.subtotal
+                )
+            )
+            conn.commit()
+            return detalle
+        except psycopg2.IntegrityError as error:
+            conn.rollback()
+            raise error
+        finally:
+            cursor.close()
+            conn.close()
 
-    def total(self):
+    # Elimina un detalle.
+    def eliminar(
+        self,
+        id_venta,
+        id_producto
+    ):
+        detalle = self.buscar_por_id(
+            id_venta,
+            id_producto
+        )
+        if not detalle:
+            raise DetalleVentaNoEncontradoError(
+                "Detalle de venta no encontrado"
+            )
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT COUNT(*) AS total
-            FROM detalle_venta
-            """
+            DELETE FROM detalle_venta
+            WHERE id_venta = %s
+            AND id_producto = %s
+            """,
+            (
+                id_venta,
+                id_producto
+            )
         )
-        total = cursor.fetchone()["total"]
+        conn.commit()
+        cursor.close()
         conn.close()
-        return total
-    def _fila_a_detalle(self, fila):
-        # Convierte una fila de PostgreSQL en un objeto DetalleVenta.
-        d = DetalleVenta(
+
+    # Convierte la fila en objeto.
+    def _fila_a_detalle(
+        self,
+        fila
+    ):
+        return DetalleVenta(
             fila["id_venta"],
             fila["id_producto"],
             fila["cantidad"],
             fila["precio_unitario"],
             fila["subtotal"]
         )
-        return d
