@@ -1,44 +1,138 @@
-# ----------------------------------------------------------------------------------
-# EXCEPCIONES PERSONALIZADAS
-#
-# Permiten controlar errores específicos relacionados con la gestión
-# de productos del sistema.
-# ----------------------------------------------------------------------------------
-from config.logger import Logger
-from config.base_datos import obtener_conexion
-from modelos.producto import Producto
+# dao/producto_dao.py
+
 import psycopg2
 
+from config.base_datos import obtener_conexion
+from modelos.producto import Producto
+
 class ProductoNoEncontradoError(Exception):
-    def __init__(self, producto_id):
-        super().__init__(
-            f"Producto ID={producto_id} no encontrado"
-        )
+    pass
 
 class ProductoDuplicadoError(Exception):
-    def __init__(self, nombre_producto):
-        super().__init__(
-            f"El producto '{nombre_producto}' ya existe"
-        )
+    pass
 
 class ProductoConVentasError(Exception):
-    def __init__(self, producto_id):
-        super().__init__(
-            f"Producto ID={producto_id} no se puede eliminar: "
-            f"tiene ventas asociadas"
-        )
+    pass
 
 class ProductoDAO:
-    def __init__(self):
-        self._log = Logger()
 
+    # Busca un producto por ID.
+    def buscar_por_id(self, producto_id):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM producto
+            WHERE id_producto = %s
+            """,
+            (producto_id,)
+        )
+        fila = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if not fila:
+            return None
+        return self._fila_a_producto(fila)
+
+    # Busca un producto por nombre exacto.
+    def buscar_por_nombre(self, nombre):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM producto
+            WHERE LOWER(nombre_producto) = LOWER(%s)
+            """,
+            (nombre,)
+        )
+        fila = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if not fila:
+            return None
+        return self._fila_a_producto(fila)
+
+    # Busca productos por nombre, tipo o categoría.
+    def buscar(
+        self,
+        nombre=None,
+        tipo=None,
+        categoria=None
+    ):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        consulta = """
+            SELECT p.*
+            FROM producto p
+            INNER JOIN categoria c
+                ON p.id_categoria = c.id_categoria
+            WHERE 1 = 1
+        """
+        parametros = []
+        if nombre:
+            consulta += """
+                AND p.nombre_producto ILIKE %s
+            """
+            parametros.append(
+                f"%{nombre}%"
+            )
+        if tipo:
+            consulta += """
+                AND p.tipo_producto ILIKE %s
+            """
+            parametros.append(
+                f"%{tipo}%"
+            )
+        if categoria:
+            consulta += """
+                AND c.nombre ILIKE %s
+            """
+            parametros.append(
+                f"%{categoria}%"
+            )
+        consulta += """
+            ORDER BY p.nombre_producto
+        """
+        cursor.execute(
+            consulta,
+            tuple(parametros)
+        )
+        filas = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [
+            self._fila_a_producto(fila)
+            for fila in filas
+        ]
+
+    # Lista todos los productos.
+    def obtener_todos(self):
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM producto
+            ORDER BY nombre_producto
+            """
+        )
+        filas = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [
+            self._fila_a_producto(fila)
+            for fila in filas
+        ]
+
+    # Inserta un producto.
     def insertar(self, producto):
-        # Verifica si el producto ya existe
         if self.buscar_por_nombre(
             producto.nombre_producto
         ):
             raise ProductoDuplicadoError(
-                producto.nombre_producto
+                "El producto ya existe"
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -54,10 +148,7 @@ class ProductoDAO:
                 id_categoria,
                 id_oferta
             )
-            VALUES
-            (
-                %s, %s, %s, %s, %s, %s, %s
-            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id_producto
             """,
             (
@@ -70,68 +161,18 @@ class ProductoDAO:
                 producto.id_oferta
             )
         )
-        fila = cursor.fetchone()
-        producto.id_producto = fila["id_producto"]
+
+        producto.id = (
+            cursor.fetchone()["id_producto"]
+        )
+
         conn.commit()
+
         cursor.close()
         conn.close()
-        self._log.info(
-            f"Producto agregado: {producto.nombre_producto} "
-            f"(ID={producto.id_producto})"
-        )
         return producto
 
-    def buscar_por_nombre(self, nombre_producto):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT *
-            FROM producto
-            WHERE nombre_producto = %s
-            """,
-            (nombre_producto,)
-        )
-        fila = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return self._fila_a_producto(fila) if fila else None
-
-    def buscar_por_id(self, producto_id):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT *
-            FROM producto
-            WHERE id_producto = %s
-            """,
-            (producto_id,)
-        )
-        fila = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return self._fila_a_producto(fila) if fila else None
-
-    def obtener_todos(self):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT *
-            FROM producto
-            ORDER BY nombre_producto
-            """
-        )
-        filas = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
-        return [
-            self._fila_a_producto(fila)
-            for fila in filas
-        ]
-
+    # Actualiza un producto.
     def actualizar(
         self,
         producto_id,
@@ -148,7 +189,7 @@ class ProductoDAO:
         )
         if not producto:
             raise ProductoNoEncontradoError(
-                producto_id
+                "Producto no encontrado"
             )
         nuevo_nombre = (
             nombre_producto
@@ -160,7 +201,6 @@ class ProductoDAO:
             if tipo_producto is not None
             else producto.tipo_producto
         )
-
         nueva_descripcion = (
             descripcion_producto
             if descripcion_producto is not None
@@ -186,17 +226,15 @@ class ProductoDAO:
             if id_oferta is not None
             else producto.id_oferta
         )
-        # Comprueba que el nombre no pertenezca a otro producto
         otro_producto = self.buscar_por_nombre(
             nuevo_nombre
         )
-
         if (
             otro_producto
-            and otro_producto.id_producto != producto_id
+            and otro_producto.id != producto_id
         ):
             raise ProductoDuplicadoError(
-                nuevo_nombre
+                "Ya existe otro producto con ese nombre"
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -227,25 +265,15 @@ class ProductoDAO:
         conn.commit()
         cursor.close()
         conn.close()
-        producto.nombre_producto = nuevo_nombre
-        producto.tipo_producto = nuevo_tipo
-        producto.descripcion_producto = nueva_descripcion
-        producto.precio = nuevo_precio
-        producto.stock = nuevo_stock
-        producto.id_categoria = nueva_categoria
-        producto.id_oferta = nueva_oferta
-        self._log.info(
-            f"Producto actualizado: ID={producto_id}"
-        )
-        return producto
-
-    def eliminar(self, producto_id):
-        producto = self.buscar_por_id(
+        return self.buscar_por_id(
             producto_id
         )
-        if not producto:
+
+    # Elimina un producto.
+    def eliminar(self, producto_id):
+        if not self.buscar_por_id(producto_id):
             raise ProductoNoEncontradoError(
-                producto_id
+                "Producto no encontrado"
             )
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -258,32 +286,16 @@ class ProductoDAO:
                 (producto_id,)
             )
             conn.commit()
-            self._log.info(
-                f"Producto eliminado: ID={producto_id}"
-            )
         except psycopg2.IntegrityError:
             conn.rollback()
             raise ProductoConVentasError(
-                producto_id
+                "El producto tiene ventas asociadas"
             )
         finally:
             cursor.close()
             conn.close()
 
-    def total(self):
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM producto
-            """
-        )
-        total = cursor.fetchone()["total"]
-        cursor.close()
-        conn.close()
-        return total
-
+    # Convierte la fila de PostgreSQL en un objeto Producto.
     def _fila_a_producto(self, fila):
         producto = Producto(
             fila["nombre_producto"],
@@ -294,5 +306,5 @@ class ProductoDAO:
             fila["id_categoria"],
             fila["id_oferta"]
         )
-        producto.id_producto = fila["id_producto"]
+        producto.id = fila["id_producto"]
         return producto
